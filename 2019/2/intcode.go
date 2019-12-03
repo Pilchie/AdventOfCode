@@ -3,7 +3,7 @@ package main
 import "fmt"
 
 func main() {
-	p := RunProgram([]int{
+	program := []int{
 		1, 0, 0, 3,
 		1, 1, 2, 3,
 		1, 3, 4, 3,
@@ -41,7 +41,12 @@ func main() {
 		1, 135, 2, 139,
 		1, 139, 9, 0,
 		99,
-		2, 14, 0, 0})
+		2, 14, 0, 0}
+
+	program[1] = 12
+	program[2] = 2
+	p := RunProgram(program)
+
 	fmt.Println(p[0])
 }
 
