@@ -47,40 +47,38 @@ func main() {
 
 // RunProgram runs an "IntCode" program
 func RunProgram(program []int) []int {
-	l := len(program)
-	for i := 0; i < l; i += 4 {
+	for i := 0; ; i += 4 {
 		opcode := program[i]
 		if opcode == 99 {
-			//fmt.Println("Got 99, exiting")
 			return program
 		}
 
-		firstAddr := program[i+1]
-		firstArg := program[firstAddr]
-		secondAddr := program[i+2]
-		secondArg := program[secondAddr]
+		input1Addr := program[i+1]
+		input2Addr := program[i+2]
+		outputAddr := program[i+3]
+
+		input1 := program[input1Addr]
+		input2 := program[input2Addr]
+		old := program[outputAddr]
+
 		result := 0
 		op := ""
 		if opcode == 1 {
-			result = firstArg + secondArg
+			result = input1 + input2
 			op = "+"
-			//fmt.Println("Adding", first, second)
 		} else if opcode == 2 {
-			result = firstArg * secondArg
+			result = input1 * input2
 			op = "*"
-			//fmt.Println("Multiplying", first, second)
 		} else {
 			fmt.Println("****ERROR: invalid opcode:", opcode)
 		}
-		//fmt.Println("Storing", result, "at", program[i+3])
-		destination := program[i+3]
-		old := program[destination]
-		program[destination] = result
-		fmt.Println("Processed:", Print([]int{opcode, firstAddr, secondAddr, destination}), "\tas", firstArg, op, secondArg, "=", result, "\t- replaced", old, "at", destination, "with", result)
+
+		program[outputAddr] = result
+
+		fmt.Println("Processed:", Print([]int{opcode, input1Addr, input2Addr, outputAddr}), "\tas", input1, op, input2, "=", result, "\t- replaced", old, "at", outputAddr, "with", result)
 		//fmt.Println("State: ", program)
 
 	}
-	return program
 }
 
 // Print prints an array
