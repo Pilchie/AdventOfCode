@@ -12,11 +12,11 @@ func TestMassOf14(t *testing.T) {
 }
 
 func TestMassOf1969(t *testing.T) {
-	testMass(t, 1969, 654)
+	testMass(t, 1969, 966)
 }
 
 func TestMassOf100756(t *testing.T) {
-	testMass(t, 100756, 33583)
+	testMass(t, 100756, 50346)
 }
 
 func testMass(t *testing.T, mass int, expected int) {
