@@ -47,25 +47,29 @@ func main() {
 	if part1 {
 		program[1] = 12
 		program[2] = 2
-		p := RunProgram(program)
+		p := RunProgram(program, false)
 		fmt.Println(p[0])
 	} else {
-		printNounAndVerb(program)
+		printNounAndVerb(program, false)
 	}
 
 }
 
-func printNounAndVerb(program []int) {
+func printNounAndVerb(program []int, trace bool) {
 	for noun := 0; noun < 100; noun++ {
 		for verb := 0; verb < 100; verb++ {
-			fmt.Printf("Trying: %d, %d", noun, verb)
+			if trace {
+				fmt.Printf("Trying: %d, %d", noun, verb)
+			}
 			p := make([]int, len(program))
 			copy(p, program)
 			program[1] = noun
 			program[2] = verb
-			p= RunProgram(p)
+			p = RunProgram(p, trace)
 			output := p[0]
-			fmt.Printf(" - output: %d\n", output)
+			if trace {
+				fmt.Printf(" - output: %d\n", output)
+			}
 
 			if output == 19690720 {
 				fmt.Printf("Found: %d\n", noun*100+verb)
@@ -77,8 +81,7 @@ func printNounAndVerb(program []int) {
 }
 
 // RunProgram runs an "IntCode" program
-func RunProgram(program []int) []int {
-	trace := false
+func RunProgram(program []int, trace bool) []int {
 
 	for i := 0; ; i += 4 {
 		opcode := program[i]
