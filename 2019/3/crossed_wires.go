@@ -93,9 +93,8 @@ func CalculateDistance(firstWire []string, secondWire []string) int {
 func lengthOf(line Line) int {
 	if line.P1.X == line.P2.X {
 		return int(math.Abs(float64(line.P2.Y - line.P1.Y)))
-	} else {
-		return int(math.Abs(float64(line.P2.X - line.P1.X)))
 	}
+	return int(math.Abs(float64(line.P2.X - line.P1.X)))
 }
 
 func manhattanDistance(point Point) int {
