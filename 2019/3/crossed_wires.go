@@ -46,33 +46,56 @@ type Line struct {
 	P2 Point
 }
 
+// PointAndLength represents an intersection point and the length of wire
+// needed to reach that intersection from the origin
+type PointAndLength struct {
+	Intersection Point
+	WireLength   int
+}
+
 // CalculateDistance calculates the Manhattan Distance between the
 // origin and the closest intersection of the two given wires.
 func CalculateDistance(firstWire []string, secondWire []string) int {
 	firstLines := makeLines(firstWire)
 	secondLines := makeLines(secondWire)
 
-	intersections := []Point{}
+	intersections := []PointAndLength{}
+	firstLength := 0
 	for _, firstLine := range firstLines {
+		secondLength := 0
 		for _, secondLine := range secondLines {
 			found, intersection := intersection(firstLine, secondLine)
 			if found && (intersection.X != 0 || intersection.Y != 0) {
 				fmt.Printf("Adding intersection (%d, %d)\n", intersection.X, intersection.Y)
-				intersections = append(intersections, intersection)
+				length := firstLength + secondLength + lengthOf(Line{firstLine.P1, intersection}) + lengthOf(Line{secondLine.P1, intersection})
+				intersections = append(intersections, PointAndLength{intersection, length})
 			}
+
+			secondLength += lengthOf(secondLine)
 		}
+
+		firstLength += lengthOf(firstLine)
 	}
 
 	// Map intersections to manhattan distances, then find the minimum
 	min := math.MaxInt32
 	for _, intersection := range intersections {
-		distance := manhattanDistance(intersection)
+		//distance := manhattanDistance(intersection.Intersection)
+		distance := intersection.WireLength
 		if distance < min {
 			min = distance
 		}
 	}
 
 	return min
+}
+
+func lengthOf(line Line) int {
+	if line.P1.X == line.P2.X {
+		return int(math.Abs(float64(line.P2.Y - line.P1.Y)))
+	} else {
+		return int(math.Abs(float64(line.P2.X - line.P1.X)))
+	}
 }
 
 func manhattanDistance(point Point) int {
