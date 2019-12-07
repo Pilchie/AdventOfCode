@@ -32,13 +32,79 @@ func Test6(t *testing.T) {
 func Test7(t *testing.T) {
 	verify(t, []int{1101,100,-1,4,0}, []int{1101, 100, -1, 4, 99})
 }
-// func TestReal(t *testing.T) {
-// 	verify(t, []int{1, 0, 0, 3, 1, 1, 2, 3, 1, 3, 4, 3, 1, 5, 0, 3, 2, 1, 10, 19, 1, 19, 5, 23, 2, 23, 6, 27, 1, 27, 5, 31, 2, 6, 31, 35, 1, 5, 35, 39, 2, 39, 9, 43, 1, 43, 5, 47, 1, 10, 47, 51, 1, 51, 6, 55, 1, 55, 10, 59, 1, 59, 6, 63, 2, 13, 63, 67, 1, 9, 67, 71, 2, 6, 71, 75, 1, 5, 75, 79, 1, 9, 79, 83, 2, 6, 83, 87, 1, 5, 87, 91, 2, 6, 91, 95, 2, 95, 9, 99, 1, 99, 6, 103, 1, 103, 13, 107, 2, 13, 107, 111, 2, 111, 10, 115, 1, 115, 6, 119, 1, 6, 119, 123, 2, 6, 123, 127, 1, 127, 5, 131, 2, 131, 6, 135, 1, 135, 2, 139, 1, 139, 9, 0, 99, 2, 14, 0, 0}, []int{})
-// }
+
+func TestEquals8PositionYes(t *testing.T) {
+	verifyInputOutput(t, []int{3,9,8,9,10,9,4,9,99,-1,8}, 8, 1)
+}
+
+func TestEquals8PositionNo(t *testing.T) {
+	verifyInputOutput(t, []int{3,9,8,9,10,9,4,9,99,-1,8}, 7, 0)
+}
+
+func TestLessThan8PositionYes(t *testing.T) {
+	verifyInputOutput(t, []int{3,9,7,9,10,9,4,9,99,-1,8}, 7, 1)
+}
+
+func TestLessThan8PositionNo(t *testing.T) {
+	verifyInputOutput(t, []int{3,9,7,9,10,9,4,9,99,-1,8}, 8, 0)
+}
+
+func TestEquals8ImmediateYes(t *testing.T) {
+	verifyInputOutput(t, []int{3,3,1108,-1,8,3,4,3,99}, 8, 1)
+}
+
+func TestEquals8ImmediateNo(t *testing.T) {
+	verifyInputOutput(t, []int{3,3,1108,-1,8,3,4,3,99}, 7, 0)
+}
+
+func TestLessThan8ImmediateYes(t *testing.T) {
+	verifyInputOutput(t, []int{3,3,1107,-1,8,3,4,3,99}, 7, 1)
+}
+
+func TestLessThan8ImmediateNo(t *testing.T) {
+	verifyInputOutput(t, []int{3,3,1107,-1,8,3,4,3,99}, 8, 0)
+}
 
 func verify(t *testing.T, input []int, expected []int) {
-	RunProgram(input)
+	RunProgram(input, TestInputProvider{}, TestOutputSink{})
 	if !reflect.DeepEqual(expected, input) {
 		t.Fatalf("Expected: '%s', Actual '%s'", Print(expected), Print(input))
 	}
+}
+
+func verifyInputOutput(t *testing.T, program []int, input int, output int) {
+	outputSink := TestOutputSink{}
+	RunProgram(program, TestInputProvider{Input: input}, outputSink)
+	if !outputSink.ReceivedValue() {
+		t.Fatalf("Expected: '%d', but didn't receive an output", output)
+	}
+	if output != outputSink.Value() {
+		t.Fatalf("Expected: '%d', Actual '%d'", output, outputSink.Value())
+	}
+}
+
+type TestInputProvider struct {
+	Input int
+}
+
+func (tip TestInputProvider) GetInput() int {
+	return tip.Input
+}
+
+type TestOutputSink struct {
+	receivedValue bool
+	value int
+}
+
+func (tos TestOutputSink) ReceivedValue() bool {
+	return tos.receivedValue
+}
+
+func (tos TestOutputSink) Value() int {
+	return tos.value
+}
+
+func (tos TestOutputSink) OutputValue(value int) {
+	tos.receivedValue = true
+	tos.value = value
 }

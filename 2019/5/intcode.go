@@ -16,7 +16,7 @@ func main() {
 	scanner.Scan()
 	program := parseProgram(scanner.Text())
 
-	RunProgram(program)
+	RunProgram(program, ConsoleInputProvider{}, ConsoleOutputSink{})
 }
 
 func parseProgram(input string) []int {
@@ -36,6 +36,29 @@ func parseProgram(input string) []int {
 	return program
 }
 
+type InputProvider interface {
+	GetInput() int
+}
+
+type OutputSink interface {
+	OutputValue(value int)
+}
+
+type ConsoleInputProvider struct {}
+
+func (_ ConsoleInputProvider) GetInput() int {
+	var i int
+	fmt.Scan(&i)
+	return i
+}
+
+type ConsoleOutputSink struct {
+}
+
+func (_ ConsoleOutputSink) OutputValue(value int) {
+	fmt.Println(value)
+}
+
 // ParameterMode represents how to interpret a parameter
 type ParameterMode int
 
@@ -50,7 +73,7 @@ const (
 // Instruction represents an IntCode instruction
 type Instruction interface {
 	Parameters() []Parameter
-	Execute(memory []int) bool
+	Execute(memory []int, inputProvider InputProvider, outputSink OutputSink) bool
 }
 
 // Parameter represents a parameter to an instruction
@@ -87,7 +110,7 @@ func (si StopInstruction) Parameters() []Parameter {
 	return nil
 }
 
-func (si StopInstruction) Execute(memory []int) bool {
+func (si StopInstruction) Execute(memory []int, inputProvider InputProvider, outputSink OutputSink) bool {
 	return false
 }
 
@@ -102,7 +125,7 @@ func (ai AddInstruction) Parameters() []Parameter {
 	return []Parameter{ai.Input1, ai.Input2, ai.Output}
 }
 
-func (ai AddInstruction) Execute(memory []int) bool {
+func (ai AddInstruction) Execute(memory []int, inputProvider InputProvider, outputSink OutputSink) bool {
 	input1 := ai.Input1.Load(memory)
 	input2 := ai.Input2.Load(memory)
 	result := input1 + input2
@@ -121,7 +144,7 @@ func (mi MultiplyInstruction) Parameters() []Parameter {
 	return []Parameter{mi.Input1, mi.Input2, mi.Output}
 }
 
-func (mi MultiplyInstruction) Execute(memory []int) bool {
+func (mi MultiplyInstruction) Execute(memory []int, inputProvider InputProvider, outputSink OutputSink) bool {
 	input1 := mi.Input1.Load(memory)
 	input2 := mi.Input2.Load(memory)
 	result := input1 * input2
@@ -138,10 +161,8 @@ func (ii InputInstruction) Parameters() []Parameter {
 	return []Parameter{ii.Position}
 }
 
-func (ii InputInstruction) Execute(memory []int) bool {
-	var i int
-	fmt.Scan(&i)
-	ii.Position.Store(memory, i)
+func (ii InputInstruction) Execute(memory []int, inputProvider InputProvider, outputSink OutputSink) bool {
+	ii.Position.Store(memory, inputProvider.GetInput())
 	return true
 }
 
@@ -154,17 +175,59 @@ func (oi OutputInstruction) Parameters() []Parameter {
 	return []Parameter{oi.Position}
 }
 
-func (oi OutputInstruction) Execute(memory []int) bool {
-	fmt.Println(oi.Position.Load(memory))
+func (oi OutputInstruction) Execute(memory []int, inputProvider InputProvider, outputSink OutputSink) bool {
+	outputSink.OutputValue(oi.Position.Load(memory))
+	return true
+}
+
+type LessThanInstruction struct {
+	Input1 Parameter
+	Input2 Parameter
+	Output Parameter
+}
+
+func (lti LessThanInstruction) Parameters() []Parameter {
+	return []Parameter{lti.Input1, lti.Input2, lti.Output}
+}
+
+func (lti LessThanInstruction) Execute(memory []int, inputProvider InputProvider, outputSink OutputSink) bool {
+	input1 := lti.Input1.Load(memory)
+	input2 := lti.Input2.Load(memory)
+	if input1 < input2 {
+		lti.Output.Store(memory, 1)
+	} else {
+		lti.Output.Store(memory, 0)
+	}
+	return true
+}
+
+type EqualsInstruction struct {
+	Input1 Parameter
+	Input2 Parameter
+	Output Parameter
+}
+
+func (ei EqualsInstruction) Parameters() []Parameter {
+	return []Parameter{ei.Input1, ei.Input2, ei.Output}
+}
+
+func (ei EqualsInstruction) Execute(memory []int, inputProvider InputProvider, outputSink OutputSink) bool {
+	input1 := ei.Input1.Load(memory)
+	input2 := ei.Input2.Load(memory)
+	if input1 == input2 {
+		ei.Output.Store(memory, 1)
+	} else {
+		ei.Output.Store(memory, 0)
+	}
 	return true
 }
 
 // ExecuteNextInstruction extracts the next instruction, and executes it.
 // returns a negative number if the program is finished, otherwise the amount to
 // adjust the programCounter by
-func ExecuteNextInstruction(memory []int, programCounter int) int {
+func ExecuteNextInstruction(memory []int, programCounter int, inputProvider InputProvider, outputSink OutputSink) int {
 	instruction := parseInstruction(memory, programCounter)
-	if instruction.Execute(memory) {
+	if instruction.Execute(memory, inputProvider, outputSink) {
 		return 1 + len(instruction.Parameters())
 	}
 
@@ -201,6 +264,18 @@ func parseInstruction(memory []int, programCounter int) Instruction {
 		return OutputInstruction{
 			Position: Parameter{Value: memory[programCounter+1], Mode: getMode(parameterModes, 0)},
 		}
+	case 7:
+		return LessThanInstruction{
+			Input1: Parameter{Value: memory[programCounter+1], Mode: getMode(parameterModes, 0)},
+			Input2: Parameter{Value: memory[programCounter+2], Mode: getMode(parameterModes, 1)},
+			Output: Parameter{Value: memory[programCounter+3], Mode: getMode(parameterModes, 2)},
+		}
+	case 8:
+		return EqualsInstruction{
+			Input1: Parameter{Value: memory[programCounter+1], Mode: getMode(parameterModes, 0)},
+			Input2: Parameter{Value: memory[programCounter+2], Mode: getMode(parameterModes, 1)},
+			Output: Parameter{Value: memory[programCounter+3], Mode: getMode(parameterModes, 2)},
+		}
 	}
 
 	return nil
@@ -218,10 +293,10 @@ func getMode(parameterModes int, position int) ParameterMode {
 }
 
 // RunProgram runs an "IntCode" program
-func RunProgram(program []int) {
+func RunProgram(program []int, inputProvider InputProvider, outputSink OutputSink) {
 	programCounter := 0
 	for {
-		delta := ExecuteNextInstruction(program, programCounter)
+		delta := ExecuteNextInstruction(program, programCounter, inputProvider, outputSink)
 		if delta < 0 {
 			return
 		}
