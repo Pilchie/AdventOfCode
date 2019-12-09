@@ -66,20 +66,21 @@ func TestLessThan8ImmediateNo(t *testing.T) {
 }
 
 func verify(t *testing.T, input []int, expected []int) {
-	RunProgram(input, TestInputProvider{}, TestOutputSink{})
+	RunProgram(input, TestInputProvider{}, &TestOutputSink{})
 	if !reflect.DeepEqual(expected, input) {
 		t.Fatalf("Expected: '%s', Actual '%s'", Print(expected), Print(input))
 	}
 }
 
 func verifyInputOutput(t *testing.T, program []int, input int, output int) {
-	outputSink := TestOutputSink{}
+	testOutputSink := TestOutputSink{}
+	var outputSink OutputSink = &testOutputSink
 	RunProgram(program, TestInputProvider{Input: input}, outputSink)
-	if !outputSink.ReceivedValue() {
+	if !testOutputSink.ReceivedValue() {
 		t.Fatalf("Expected: '%d', but didn't receive an output", output)
 	}
-	if output != outputSink.Value() {
-		t.Fatalf("Expected: '%d', Actual '%d'", output, outputSink.Value())
+	if output != testOutputSink.Value() {
+		t.Fatalf("Expected: '%d', Actual '%d'", output, testOutputSink.Value())
 	}
 }
 
@@ -104,7 +105,7 @@ func (tos TestOutputSink) Value() int {
 	return tos.value
 }
 
-func (tos TestOutputSink) OutputValue(value int) {
+func (tos *TestOutputSink) OutputValue(value int) {
 	tos.receivedValue = true
 	tos.value = value
 }
