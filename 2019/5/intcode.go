@@ -72,8 +72,7 @@ const (
 
 // Instruction represents an IntCode instruction
 type Instruction interface {
-	Parameters() []Parameter
-	Execute(memory []int, inputProvider InputProvider, outputSink OutputSink) bool
+	Execute(memory []int, programCounter int, inputProvider InputProvider, outputSink OutputSink) int
 }
 
 // Parameter represents a parameter to an instruction
@@ -105,79 +104,84 @@ func (p Parameter) Store(memory []int, value int) {
 type StopInstruction struct {
 }
 
-// Parameters returns the parameters of a StopInstruction
-func (si StopInstruction) Parameters() []Parameter {
-	return nil
+func (si StopInstruction) Execute(memory []int, programCounter int, inputProvider InputProvider, outputSink OutputSink) int {
+	return -1
 }
 
-func (si StopInstruction) Execute(memory []int, inputProvider InputProvider, outputSink OutputSink) bool {
-	return false
-}
-
-// AddInstruction represents an addition operation and its parameters
 type AddInstruction struct {
 	Input1 Parameter
 	Input2 Parameter
 	Output Parameter
 }
 
-func (ai AddInstruction) Parameters() []Parameter {
-	return []Parameter{ai.Input1, ai.Input2, ai.Output}
-}
-
-func (ai AddInstruction) Execute(memory []int, inputProvider InputProvider, outputSink OutputSink) bool {
+func (ai AddInstruction) Execute(memory []int, programCounter int, inputProvider InputProvider, outputSink OutputSink) int {
 	input1 := ai.Input1.Load(memory)
 	input2 := ai.Input2.Load(memory)
 	result := input1 + input2
 	ai.Output.Store(memory, result)
-	return true
+	return programCounter + 4
 }
 
-// MultiplyInstruction represents an addition operation and its parameters
 type MultiplyInstruction struct {
 	Input1 Parameter
 	Input2 Parameter
 	Output Parameter
 }
 
-func (mi MultiplyInstruction) Parameters() []Parameter {
-	return []Parameter{mi.Input1, mi.Input2, mi.Output}
-}
-
-func (mi MultiplyInstruction) Execute(memory []int, inputProvider InputProvider, outputSink OutputSink) bool {
+func (mi MultiplyInstruction) Execute(memory []int, programCounter int, inputProvider InputProvider, outputSink OutputSink) int {
 	input1 := mi.Input1.Load(memory)
 	input2 := mi.Input2.Load(memory)
 	result := input1 * input2
 	mi.Output.Store(memory, result)
-	return true
+	return programCounter + 4
 }
 
-// InputInstruction represents an addition operation and its parameters
 type InputInstruction struct {
 	Position Parameter
 }
 
-func (ii InputInstruction) Parameters() []Parameter {
-	return []Parameter{ii.Position}
-}
-
-func (ii InputInstruction) Execute(memory []int, inputProvider InputProvider, outputSink OutputSink) bool {
+func (ii InputInstruction) Execute(memory []int, programCounter int, inputProvider InputProvider, outputSink OutputSink) int {
 	ii.Position.Store(memory, inputProvider.GetInput())
-	return true
+	return programCounter + 2
 }
 
-// OutputInstruction represents an addition operation and its parameters
 type OutputInstruction struct {
 	Position Parameter
 }
 
-func (oi OutputInstruction) Parameters() []Parameter {
-	return []Parameter{oi.Position}
+func (oi OutputInstruction) Execute(memory []int, programCounter int, inputProvider InputProvider, outputSink OutputSink) int {
+	outputSink.OutputValue(oi.Position.Load(memory))
+	return programCounter + 2
 }
 
-func (oi OutputInstruction) Execute(memory []int, inputProvider InputProvider, outputSink OutputSink) bool {
-	outputSink.OutputValue(oi.Position.Load(memory))
-	return true
+type JumpIfTrueInstruction struct {
+	ValueToTest Parameter
+	Destination Parameter
+}
+
+func (jiti JumpIfTrueInstruction) Execute(memory []int, programCounter int, inputProvider InputProvider, outputSink OutputSink) int {
+	valueToTest := jiti.ValueToTest.Load(memory)
+	destination := jiti.Destination.Load(memory)
+	if valueToTest != 0 {
+		return destination
+	}
+
+	return programCounter + 3
+}
+
+type JumpIfFalseInstruction struct {
+	ValueToTest Parameter
+	Destination Parameter
+}
+
+func (jifi JumpIfFalseInstruction) Execute(memory []int, programCounter int, inputProvider InputProvider, outputSink OutputSink) int {
+	valueToTest := jifi.ValueToTest.Load(memory)
+	destination := jifi.Destination.Load(memory)
+	if valueToTest == 0 {
+		return destination
+	}
+	
+	return programCounter +3
 }
 
 type LessThanInstruction struct {
@@ -186,11 +190,7 @@ type LessThanInstruction struct {
 	Output Parameter
 }
 
-func (lti LessThanInstruction) Parameters() []Parameter {
-	return []Parameter{lti.Input1, lti.Input2, lti.Output}
-}
-
-func (lti LessThanInstruction) Execute(memory []int, inputProvider InputProvider, outputSink OutputSink) bool {
+func (lti LessThanInstruction) Execute(memory []int, programCounter int, inputProvider InputProvider, outputSink OutputSink) int {
 	input1 := lti.Input1.Load(memory)
 	input2 := lti.Input2.Load(memory)
 	if input1 < input2 {
@@ -198,7 +198,7 @@ func (lti LessThanInstruction) Execute(memory []int, inputProvider InputProvider
 	} else {
 		lti.Output.Store(memory, 0)
 	}
-	return true
+	return programCounter + 4
 }
 
 type EqualsInstruction struct {
@@ -207,11 +207,7 @@ type EqualsInstruction struct {
 	Output Parameter
 }
 
-func (ei EqualsInstruction) Parameters() []Parameter {
-	return []Parameter{ei.Input1, ei.Input2, ei.Output}
-}
-
-func (ei EqualsInstruction) Execute(memory []int, inputProvider InputProvider, outputSink OutputSink) bool {
+func (ei EqualsInstruction) Execute(memory []int, programCounter int, inputProvider InputProvider, outputSink OutputSink) int {
 	input1 := ei.Input1.Load(memory)
 	input2 := ei.Input2.Load(memory)
 	if input1 == input2 {
@@ -219,19 +215,15 @@ func (ei EqualsInstruction) Execute(memory []int, inputProvider InputProvider, o
 	} else {
 		ei.Output.Store(memory, 0)
 	}
-	return true
+	return programCounter + 4
 }
 
 // ExecuteNextInstruction extracts the next instruction, and executes it.
-// returns a negative number if the program is finished, otherwise the amount to
-// adjust the programCounter by
+// returns a negative number if the program is finished, otherwise the new value of the programCounter
 func ExecuteNextInstruction(memory []int, programCounter int, inputProvider InputProvider, outputSink OutputSink) int {
 	instruction := parseInstruction(memory, programCounter)
-	if instruction.Execute(memory, inputProvider, outputSink) {
-		return 1 + len(instruction.Parameters())
-	}
 
-	return -1
+	return instruction.Execute(memory, programCounter, inputProvider, outputSink)
 }
 
 func parseInstruction(memory []int, programCounter int) Instruction {
@@ -264,7 +256,17 @@ func parseInstruction(memory []int, programCounter int) Instruction {
 		return OutputInstruction{
 			Position: Parameter{Value: memory[programCounter+1], Mode: getMode(parameterModes, 0)},
 		}
-	case 7:
+	case 5:
+		return JumpIfTrueInstruction{
+			ValueToTest: Parameter{Value: memory[programCounter+1], Mode: getMode(parameterModes, 0)},
+			Destination: Parameter{Value: memory[programCounter+2], Mode: getMode(parameterModes, 1)},
+		}
+	case 6:
+		return JumpIfFalseInstruction{
+			ValueToTest: Parameter{Value: memory[programCounter+1], Mode: getMode(parameterModes, 0)},
+			Destination: Parameter{Value: memory[programCounter+2], Mode: getMode(parameterModes, 1)},
+		}
+		case 7:
 		return LessThanInstruction{
 			Input1: Parameter{Value: memory[programCounter+1], Mode: getMode(parameterModes, 0)},
 			Input2: Parameter{Value: memory[programCounter+2], Mode: getMode(parameterModes, 1)},
@@ -296,12 +298,10 @@ func getMode(parameterModes int, position int) ParameterMode {
 func RunProgram(program []int, inputProvider InputProvider, outputSink OutputSink) {
 	programCounter := 0
 	for {
-		delta := ExecuteNextInstruction(program, programCounter, inputProvider, outputSink)
-		if delta < 0 {
+		programCounter = ExecuteNextInstruction(program, programCounter, inputProvider, outputSink)
+		if programCounter < 0 {
 			return
 		}
-
-		programCounter += delta
 	}
 }
 

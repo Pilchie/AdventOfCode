@@ -65,6 +65,40 @@ func TestLessThan8ImmediateNo(t *testing.T) {
 	verifyInputOutput(t, []int{3,3,1107,-1,8,3,4,3,99}, 8, 0)
 }
 
+func TestJumpWithZeroInputPosition(t *testing.T) {
+	verifyInputOutput(t, []int{3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9}, 0, 0)
+}
+
+func TestJumpWithNonZeroInputPosition(t *testing.T) {
+	verifyInputOutput(t, []int{3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9}, 25, 1)
+}
+
+func TestJumpWithZeroInputImmediate(t *testing.T) {
+	verifyInputOutput(t, []int{3,3,1105,-1,9,1101,0,0,12,4,12,99,1}, 0, 0)
+}
+
+func TestJumpWithNonZeroInputImmediate(t *testing.T) {
+	verifyInputOutput(t, []int{3,3,1105,-1,9,1101,0,0,12,4,12,99,1}, 25, 1)
+}
+
+func TestLargerExampleInputBelowEight(t *testing.T) {
+	verifyInputOutput(t, []int{3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,
+		1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,
+		999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99}, 3, 999)
+}
+
+func TestLargerExampleInputEqualToEight(t *testing.T) {
+	verifyInputOutput(t, []int{3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,
+		1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,
+		999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99}, 8, 1000)
+}
+
+func TestLargerExampleInputOverEight(t *testing.T) {
+	verifyInputOutput(t, []int{3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,
+		1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,
+		999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99}, 29, 1001)
+}
+
 func verify(t *testing.T, input []int, expected []int) {
 	RunProgram(input, TestInputProvider{}, &TestOutputSink{})
 	if !reflect.DeepEqual(expected, input) {
