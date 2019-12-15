@@ -1,12 +1,6 @@
 import unittest
 import intcode
 
-def main():
-    unittest.main()
-
-if __name__ == "__main__":
-    main()
-
 class TestInputProvider(intcode.InputProvider):
     def __init__(self, value):
         self.value = value
@@ -15,8 +9,11 @@ class TestInputProvider(intcode.InputProvider):
         return self.value
 
 class TestOutputSink(intcode.OutputSink):
+    def __init__(self):
+        self.output = []
+
     def print_output(self, output):
-        self.output = output
+        self.output.append(output)
 
 class IntCodeTests(unittest.TestCase):
     def verify(self, input, expected):
@@ -47,10 +44,10 @@ class IntCodeTests(unittest.TestCase):
 
 class IntCodeInputOutputTests(unittest.TestCase):
     def verifyInputOutput(self, program, input, expected_output):
-        outputSink = TestOutputSink()
-        computer = intcode.IntCode(TestInputProvider(input), outputSink)
+        output_sink = TestOutputSink()
+        computer = intcode.IntCode(TestInputProvider(input), output_sink)
         computer.run_to_completion(program)
-        self.assertEqual(expected_output, outputSink.output)
+        self.assertEqual(expected_output, output_sink.output[0])
 
     def test_Equals8PositionYes(self):
         self.verifyInputOutput([3,9,8,9,10,9,4,9,99,-1,8], 8, 1)
@@ -102,3 +99,61 @@ class IntCodeInputOutputTests(unittest.TestCase):
         self.verifyInputOutput([3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,
             1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,
             999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99], 29, 1001)
+
+    def test_8(self):
+        self.verifyInputOutput([109, -1, 4, 1, 99], 0, -1)
+
+    def test_9(self):
+        self.verifyInputOutput([109, -1, 104, 1, 99], 0, 1)
+
+    def test_10(self):
+        self.verifyInputOutput([109, -1, 204, 1, 99], 0, 109)
+
+    def test_11(self):
+        self.verifyInputOutput([109, 1, 9, 2, 204, -6, 99], 0, 204)
+
+    def test_12(self):
+        self.verifyInputOutput([109, 1, 109, 9, 204, -6, 99], 0, 204)
+
+    def test_13(self):
+        self.verifyInputOutput([109, 1, 209, -1, 204, -106, 99], 0, 204)
+
+    def test_14(self):
+        for i in range(0, 25):
+            self.verifyInputOutput([109, 1, 3, 3, 204, 2, 99], i, i)
+
+    def test_15(self):
+        for i in range(0, 25):
+            self.verifyInputOutput([109, 1, 203, 2, 204, 2, 99], i, i)
+
+class IntCodeDay9Tests(unittest.TestCase):
+    def __init__(self, methodName):
+        super().__init__(methodName)
+
+    def test_1(self):
+        input = [109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99]
+        output_sink = TestOutputSink()
+        computer = intcode.IntCode(TestInputProvider(0), output_sink)
+        computer.run_to_completion(input)
+        self.assertSequenceEqual(input, output_sink.output)
+
+    def test_2(self):
+        input = [1102,34915192,34915192,7,4,7,99,0]
+        output_sink = TestOutputSink()
+        computer = intcode.IntCode(TestInputProvider(0), output_sink)
+        computer.run_to_completion(input)
+        strOutput = str(output_sink.output[0])
+        self.assertEqual(16, len(strOutput))
+
+    def test_3(self):
+        input = [104,1125899906842624,99]
+        output_sink = TestOutputSink()
+        computer = intcode.IntCode(TestInputProvider(0), output_sink)
+        computer.run_to_completion(input)
+        self.assertEqual(input[1], output_sink.output[0])
+
+def main():
+    unittest.main()
+
+if __name__ == "__main__":
+    main()
