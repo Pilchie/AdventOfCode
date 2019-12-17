@@ -11,12 +11,72 @@ class Day10Tests(unittest.TestCase):
 #####
 ....#
 ...##""")
-        #actual_point, actual_count = map.max_visible()
-        #self.verify_point_count(asteroids.Point(3,4), 8, actual_point, actual_count)
-        point = asteroids.Point(3,4)
-        self.assertEqual(8, map.count_visible(point))
+        self.verify_point_count(asteroids.Point(3,4), 8, map)
 
-    def verify_point_count(self, expected_point, expected_count, actual_point, actual_count):
+    def test_2(self):
+        map = asteroids.Map("""......#.#.
+#..#.#....
+..#######.
+.#.#.###..
+.#..#.....
+..#....#.#
+#..#....#.
+.##.#..###
+##...#..#.
+.#....####""")
+        self.verify_point_count(asteroids.Point(5, 8), 33, map)
+
+    def test_3(self):
+        map = asteroids.Map("""#.#...#.#.
+.###....#.
+.#....#...
+##.#.#.#.#
+....#.#.#.
+.##..###.#
+..#...##..
+..##....##
+......#...
+.####.###.""")
+        self.verify_point_count(asteroids.Point(1, 2), 35, map)
+
+    def test_4(self):
+        map = asteroids.Map(""".#..#..###
+####.###.#
+....###.#.
+..###.##.#
+##.##.#.#.
+....###..#
+..#.#..#.#
+#..#.#.###
+.##...##.#
+.....#.#..""")
+        self.verify_point_count(asteroids.Point(6, 3), 41, map)
+
+    def test_5(self):
+        map = asteroids.Map(""".#..##.###...#######
+##.############..##.
+.#.######.########.#
+.###.#######.####.#.
+#####.##.#.##.###.##
+..#####..#.#########
+####################
+#.####....###.#.#.##
+##.#################
+#####.##.###..####..
+..######..##.#######
+####.##.####...##..#
+.#####..#.######.###
+##...#.##########...
+#.##########.#######
+.####.#.###.###.#.##
+....##.##.###..#####
+.#.#.###########.###
+#.#.#.#####.####.###
+###.##.####.##.#..##""")
+        self.verify_point_count(asteroids.Point(11, 13), 210, map)
+
+    def verify_point_count(self, expected_point, expected_count, map):
+        actual_point, actual_count = map.max_visible()
         self.assertEqual(expected_point.x(), actual_point.x())
         self.assertEqual(expected_point.y(), actual_point.y())
         self.assertEqual(expected_count, actual_count)
