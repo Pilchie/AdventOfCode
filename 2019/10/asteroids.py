@@ -84,3 +84,13 @@ class Point:
 
     def y(self):
         return self._y
+
+def solve_part1():
+    with open("input.txt") as f:
+        content = f.read()
+    map = Map(content)
+    point, count = map.max_visible()
+    print(count)
+
+if __name__ == "__main__":
+    solve_part1()
