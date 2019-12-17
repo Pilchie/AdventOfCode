@@ -1,3 +1,16 @@
+import math
+
+def greatest_common_denominator(i1,i2):
+    if abs(i1) < abs(i2):
+        min = i1
+    else:
+        min = i2
+
+    for i in range(int(abs(min)), 0, -1):
+        if i1 % i == 0 and i2 % i == 0:
+            return i
+    raise Exception()
+
 class Map:
     def __init__(self, lines):
         self._lines = lines.splitlines()
@@ -18,18 +31,17 @@ class Map:
                 if self.is_asteroid(Point(origin.x() + int(i*dx/abs(dx)), origin.y())):
                     return False
             return True
-        elif abs(dx/dy) >= 1:
-            for i in range(1, abs(dy)):
-                if self.is_asteroid(Point(origin.x() + int(abs(dx/dy)*dx/abs(dx)*i), origin.y() + int(i*dy/abs(dy)))):
-                    return False
-            return True
-        elif abs(dy/dx) >= 1:
-            for i in range(1, abs(dx)):
-                if self.is_asteroid(Point(origin.x() + int(i*dx/abs(dx)), origin.y() + int(abs(dy/dx)*dy/abs(dy)*i))):
-                    return False
-            return True
         else:
-            raise Exception
+            i = 1
+            gcd = greatest_common_denominator(dx,dy)
+            while True:
+                new  = Point(origin.x() + i * int(dx/gcd), origin.y() + i * int(dy/gcd))
+                if new.x() == destination.x() and new.y() == destination.y():
+                    return True
+                if self.is_asteroid(new):
+                    return False
+                i = i + 1
+            raise Exception()
 
     def is_asteroid(self, point):
         if self._lines[point.y()][point.x()] == "#":
