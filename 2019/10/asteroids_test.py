@@ -2,6 +2,27 @@ import asteroids
 import unittest
 
 class Day10Tests(unittest.TestCase):
+    large_map = """.#..##.###...#######
+##.############..##.
+.#.######.########.#
+.###.#######.####.#.
+#####.##.#.##.###.##
+..#####..#.#########
+####################
+#.####....###.#.#.##
+##.#################
+#####.##.###..####..
+..######..##.#######
+####.##.####...##..#
+.#####..#.######.###
+##...#.##########...
+#.##########.#######
+.####.#.###.###.#.##
+....##.##.###..#####
+.#.#.###########.###
+#.#.#.#####.####.###
+###.##.####.##.#..##"""
+
     def __init__(self, methodName):
         super().__init__(methodName)
 
@@ -53,26 +74,7 @@ class Day10Tests(unittest.TestCase):
         self.verify_point_count(asteroids.Point(6, 3), 41, map)
 
     def test_5(self):
-        map = asteroids.Map(""".#..##.###...#######
-##.############..##.
-.#.######.########.#
-.###.#######.####.#.
-#####.##.#.##.###.##
-..#####..#.#########
-####################
-#.####....###.#.#.##
-##.#################
-#####.##.###..####..
-..######..##.#######
-####.##.####...##..#
-.#####..#.######.###
-##...#.##########...
-#.##########.#######
-.####.#.###.###.#.##
-....##.##.###..#####
-.#.#.###########.###
-#.#.#.#####.####.###
-###.##.####.##.#..##""")
+        map = asteroids.Map(Day10Tests.large_map)
         self.verify_point_count(asteroids.Point(11, 13), 210, map)
 
     def verify_point_count(self, expected_point, expected_count, map):
@@ -98,6 +100,29 @@ class Day10Tests(unittest.TestCase):
                 origin = asteroids.Point(x,y)
                 if map.is_asteroid(origin):
                     self.assertEqual(int(answers[y][x]), map.count_visible(origin), f"At ({x},{y})")
+
+    def test_part2_large_map(self):
+        points = [
+            (1, asteroids.Point(11, 12)),
+            (2, asteroids.Point(12, 1)),
+            (3, asteroids.Point(12, 2)),
+            (10, asteroids.Point(12, 8)),
+            (20, asteroids.Point(16, 0)),
+            (50, asteroids.Point(16, 9)),
+            (100, asteroids.Point(10, 16)),
+            (199, asteroids.Point(9, 6)),
+            (200, asteroids.Point(8, 2)),
+            (201, asteroids.Point(10, 9)),
+            (299, asteroids.Point(11, 1))
+        ]
+        self.verify_vaporized(points)
+
+    def verify_vaporized(self, points):
+        map = asteroids.Map(Day10Tests.large_map)
+        order_vaporized = map.order_vaporized()
+        for i, p in points:
+            self.assertEqual(p, order_vaporized[i - 1])
+
 
 def main():
     unittest.main()
