@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 enum ExpectedOutput {
     Color,
-    Turn
+    Turn,
 }
 
 impl ExpectedOutput {
@@ -23,10 +23,22 @@ struct Position {
 impl Position {
     fn next(&self, dir: Direction) -> Position {
         match dir {
-            Direction::Up => Position { y: self.y - 1, ..*self },
-            Direction::Right => Position { x: self.x + 1, ..*self },
-            Direction::Down => Position { y: self.y + 1, ..*self },
-            Direction::Left => Position { x: self.x - 1, ..*self },
+            Direction::Up => Position {
+                y: self.y - 1,
+                ..*self
+            },
+            Direction::Right => Position {
+                x: self.x + 1,
+                ..*self
+            },
+            Direction::Down => Position {
+                y: self.y + 1,
+                ..*self
+            },
+            Direction::Left => Position {
+                x: self.x - 1,
+                ..*self
+            },
         }
     }
 }
@@ -36,7 +48,7 @@ impl Clone for Position {
         Position { ..*self }
     }
 }
-impl Copy for Position { }
+impl Copy for Position {}
 
 impl std::cmp::PartialEq for Position {
     fn eq(&self, rhs: &Position) -> bool {
@@ -44,10 +56,10 @@ impl std::cmp::PartialEq for Position {
     }
 }
 
-impl std::cmp::Eq for Position { }
+impl std::cmp::Eq for Position {}
 
 impl std::hash::Hash for Position {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H){
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         state.write_usize(self.x);
         state.write_usize(self.y);
     }
@@ -57,7 +69,7 @@ enum Direction {
     Up,
     Down,
     Left,
-    Right
+    Right,
 }
 
 impl Clone for Direction {
@@ -66,7 +78,7 @@ impl Clone for Direction {
     }
 }
 
-impl Copy for Direction { }
+impl Copy for Direction {}
 
 impl Direction {
     fn next(&self, val: i64) -> Direction {
@@ -105,13 +117,43 @@ impl Robot {
     fn new() -> Robot {
         Robot {
             grid: vec![
-                vec![Color::Black, Color::Black, Color::Black, Color::Black, Color::Black],
-                vec![Color::Black, Color::Black, Color::Black, Color::Black, Color::Black],
-                vec![Color::Black, Color::Black, Color::Black, Color::Black, Color::Black],
-                vec![Color::Black, Color::Black, Color::Black, Color::Black, Color::Black],
-                vec![Color::Black, Color::Black, Color::Black, Color::Black, Color::Black],
+                vec![
+                    Color::Black,
+                    Color::Black,
+                    Color::Black,
+                    Color::Black,
+                    Color::Black,
+                ],
+                vec![
+                    Color::Black,
+                    Color::Black,
+                    Color::Black,
+                    Color::Black,
+                    Color::Black,
+                ],
+                vec![
+                    Color::Black,
+                    Color::Black,
+                    Color::Black,
+                    Color::Black,
+                    Color::Black,
+                ],
+                vec![
+                    Color::Black,
+                    Color::Black,
+                    Color::Black,
+                    Color::Black,
+                    Color::Black,
+                ],
+                vec![
+                    Color::Black,
+                    Color::Black,
+                    Color::Black,
+                    Color::Black,
+                    Color::Black,
+                ],
             ],
-            pos: Position { x: 0, y: 0},
+            pos: Position { x: 0, y: 0 },
             dir: Direction::Up,
             expected: ExpectedOutput::Color,
             painted: HashMap::new(),
@@ -133,16 +175,16 @@ impl intcode::OutputSink for Robot {
         match self.expected {
             ExpectedOutput::Color => {
                 self.painted.insert(self.pos, true);
-                if value == 1 { 
+                if value == 1 {
                     self.grid[self.pos.y][self.pos.x] = Color::White;
                 } else {
                     self.grid[self.pos.y][self.pos.x] = Color::Black;
                 }
-            },
+            }
             ExpectedOutput::Turn => {
                 self.dir = self.dir.next(value);
                 self.pos = self.pos.next(self.dir);
-            },
+            }
         }
 
         self.expected = self.expected.Next();
