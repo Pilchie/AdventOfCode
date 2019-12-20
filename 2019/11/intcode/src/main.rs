@@ -116,12 +116,14 @@ struct Robot {
 
 impl Robot {
     fn new() -> Robot {
-        Robot {
+        let mut robot = Robot {
             grid: HashMap::new(),
             pos: Position { x: 0, y: 0 },
             dir: Direction::Up,
             expected: ExpectedOutput::Color,
-        }
+        };
+        robot.grid.insert(Position { x: 0, y: 0 }, Color::White);
+        robot
     }
 }
 
