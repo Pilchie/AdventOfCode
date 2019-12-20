@@ -169,5 +169,64 @@ fn main() {
     let mut computer = intcode::IntCode::new(&mut robot);
     computer.run_to_completion(&mut input);
 
+    let mut minx: Option<i32> = None;
+    let mut miny: Option<i32> = None;
+    let mut maxx: Option<i32> = None;
+    let mut maxy: Option<i32> = None;
+
+    for p in robot.grid.keys() {
+        minx = match minx {
+            None => Some(p.x),
+            Some(min) => {
+                if p.x < min {
+                    Some(p.x)
+                } else {
+                    minx
+                }
+            }
+        };
+        miny = match miny {
+            None => Some(p.y),
+            Some(min) => {
+                if p.y < min {
+                    Some(p.y)
+                } else {
+                    miny
+                }
+            }
+        };
+        maxx = match maxx {
+            None => Some(p.x),
+            Some(max) => {
+                if p.x > max {
+                    Some(p.x)
+                } else {
+                    maxx
+                }
+            }
+        };
+        maxy = match maxy {
+            None => Some(p.y),
+            Some(max) => {
+                if p.y > max {
+                    Some(p.y)
+                } else {
+                    maxy
+                }
+            }
+        };
+    }
+
+    for y in miny.unwrap()..(maxy.unwrap() + 1) {
+        for x in minx.unwrap()..(maxx.unwrap() + 1) {
+            let color = &robot.grid.entry(Position { x, y }).or_insert(Color::Black);
+            match color {
+                Color::White => print!("█"),
+                Color::Black => print!(" "),
+            }
+        }
+        println!();
+    }
+
     println!("{}", robot.grid.len());
 }
