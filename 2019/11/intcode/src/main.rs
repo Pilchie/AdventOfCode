@@ -9,7 +9,7 @@ enum ExpectedOutput {
 }
 
 impl ExpectedOutput {
-    fn Next(&self) -> ExpectedOutput {
+    fn next(&self) -> ExpectedOutput {
         match self {
             ExpectedOutput::Color => ExpectedOutput::Turn,
             ExpectedOutput::Turn => ExpectedOutput::Color,
@@ -149,7 +149,7 @@ impl intcode::InputOutputSystem for Robot {
             }
         }
 
-        self.expected = self.expected.Next();
+        self.expected = self.expected.next();
     }
 }
 
