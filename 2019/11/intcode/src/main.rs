@@ -1,5 +1,7 @@
 use intcode;
 use std::collections::HashMap;
+use std::env;
+use std::fs;
 
 enum ExpectedOutput {
     Color,
@@ -16,8 +18,8 @@ impl ExpectedOutput {
 }
 
 struct Position {
-    x: usize,
-    y: usize,
+    x: i32,
+    y: i32,
 }
 
 impl Position {
@@ -60,8 +62,8 @@ impl std::cmp::Eq for Position {}
 
 impl std::hash::Hash for Position {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        state.write_usize(self.x);
-        state.write_usize(self.y);
+        state.write_i32(self.x);
+        state.write_i32(self.y);
     }
 }
 
@@ -106,79 +108,39 @@ enum Color {
 }
 
 struct Robot {
-    grid: Vec<Vec<Color>>,
+    grid: HashMap<Position, Color>,
     pos: Position,
     dir: Direction,
     expected: ExpectedOutput,
-    painted: HashMap<Position, bool>,
 }
 
 impl Robot {
     fn new() -> Robot {
         Robot {
-            grid: vec![
-                vec![
-                    Color::Black,
-                    Color::Black,
-                    Color::Black,
-                    Color::Black,
-                    Color::Black,
-                ],
-                vec![
-                    Color::Black,
-                    Color::Black,
-                    Color::Black,
-                    Color::Black,
-                    Color::Black,
-                ],
-                vec![
-                    Color::Black,
-                    Color::Black,
-                    Color::Black,
-                    Color::Black,
-                    Color::Black,
-                ],
-                vec![
-                    Color::Black,
-                    Color::Black,
-                    Color::Black,
-                    Color::Black,
-                    Color::Black,
-                ],
-                vec![
-                    Color::Black,
-                    Color::Black,
-                    Color::Black,
-                    Color::Black,
-                    Color::Black,
-                ],
-            ],
+            grid: HashMap::new(),
             pos: Position { x: 0, y: 0 },
             dir: Direction::Up,
             expected: ExpectedOutput::Color,
-            painted: HashMap::new(),
         }
     }
 }
 
-impl intcode::InputProvider for Robot {
-    fn get_input(&self) -> i64 {
-        match self.grid[self.pos.y][self.pos.x] {
+impl intcode::InputOutputSystem for Robot {
+    fn get_input(&mut self) -> i64 {
+        let value = self.grid.entry(self.pos).or_insert(Color::Black);
+        match value {
             Color::Black => 0,
             Color::White => 1,
         }
     }
-}
 
-impl intcode::OutputSink for Robot {
     fn print_output(&mut self, value: i64) {
         match self.expected {
             ExpectedOutput::Color => {
-                self.painted.insert(self.pos, true);
                 if value == 1 {
-                    self.grid[self.pos.y][self.pos.x] = Color::White;
+                    self.grid.insert(self.pos, Color::White);
                 } else {
-                    self.grid[self.pos.y][self.pos.x] = Color::Black;
+                    self.grid.insert(self.pos, Color::Black);
                 }
             }
             ExpectedOutput::Turn => {
@@ -192,10 +154,18 @@ impl intcode::OutputSink for Robot {
 }
 
 fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    let contents = fs::read_to_string(&args[1]).expect("Something went wrong reading the file");
+
+    let mut input: Vec<i64> = Vec::new();
+    for i in contents.split(',') {
+        input.push(i.parse::<i64>().unwrap());
+    }
+
     let mut robot = Robot::new();
-    let mut computer = intcode::IntCode::new(&robot, &mut robot);
-    let mut input = vec![1, 0, 0, 0, 99];
+    let mut computer = intcode::IntCode::new(&mut robot);
     computer.run_to_completion(&mut input);
 
-    println!("{}", robot.painted.len());
+    println!("{}", robot.grid.len());
 }
