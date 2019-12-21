@@ -16,32 +16,36 @@ class Map:
         self._lines = lines.splitlines()
 
     def can_see(self, origin, destination):
+        return self.first_visible(origin, destination) == destination
+
+    def first_visible(self, origin, destination):
         if origin.x() == destination.x() and origin.y() == destination.y():
-            return False
+            return None
 
         dx = destination.x() - origin.x()
         dy = destination.y() - origin.y()
         if dx == 0:
-            for i in range(1, abs(dy)):
-                if self.is_asteroid(Point(origin.x(), origin.y() + int(i*dy/abs(dy)))):
-                    return False
-            return True
+            for i in range(1, abs(dy) + 1):
+                p = Point(origin.x(), origin.y() + int(i*dy/abs(dy)))
+                if self.is_asteroid(p):
+                    return p
+            return None
         elif dy == 0:
-            for i in range(1, abs(dx)):
-                if self.is_asteroid(Point(origin.x() + int(i*dx/abs(dx)), origin.y())):
-                    return False
-            return True
+            for i in range(1, abs(dx) + 1):
+                p = Point(origin.x() + int(i*dx/abs(dx)), origin.y())
+                if self.is_asteroid(p):
+                    return p
+            return None
         else:
             i = 1
             gcd = greatest_common_denominator(dx,dy)
             while True:
                 new  = Point(origin.x() + i * int(dx/gcd), origin.y() + i * int(dy/gcd))
-                if new.x() == destination.x() and new.y() == destination.y():
-                    return True
+                if new.x() < 0 or new.y() < 0 or new.y() >= len(self._lines) or new.x() >= len(self._lines[new.y()]):
+                    return None
                 if self.is_asteroid(new):
-                    return False
+                    return new
                 i = i + 1
-            raise Exception()
 
     def is_asteroid(self, point):
         if self._lines[point.y()][point.x()] == "#":
@@ -74,6 +78,31 @@ class Map:
                 point = a
         return point, max_visible
 
+    def check(self, base, point, result):
+        first = self.first_visible(base, point)
+        if first != None:
+            line = self._lines[first.y()]
+            line = line[:first.x()] + "." + line[first.x() + 1:]
+            self._lines[first.y()] = line
+            result.append(first)
+
+    def order_vaporized(self, base):
+        result = []
+        count = None
+        while count != len(result):
+            count = len(result)
+            for x in range(base.x(), len(self._lines[0])):
+                self.check(base, Point(x, 0), result)
+            for y in range(0, len(self._lines)):
+                self.check(base, Point(len(self._lines[0]) - 1, y), result)
+            for x in range(len(self._lines[0]), 0, -1):
+                self.check(base, Point(x - 1, len(self._lines) - 1), result)
+            for y in range(len(self._lines), 0, -1):
+                self.check(base, Point(0, y), result)
+            for x in range(0, base.x()):
+                self.check(base, Point(x, 0), result)
+        return result
+
 class Point:
     def __init__(self, x, y):
         self._x = x
@@ -84,6 +113,11 @@ class Point:
 
     def y(self):
         return self._y
+
+    def __eq__(self, value):
+        if value == None:
+            return False
+        return self._x == value._x and self._y == value._y
 
 def solve_part1():
     with open("input.txt") as f:

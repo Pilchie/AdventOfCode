@@ -119,10 +119,10 @@ class Day10Tests(unittest.TestCase):
 
     def verify_vaporized(self, points):
         map = asteroids.Map(Day10Tests.large_map)
-        order_vaporized = map.order_vaporized()
-        for i, p in points:
-            self.assertEqual(p, order_vaporized[i - 1])
-
+        order_vaporized = map.order_vaporized(asteroids.Point(11, 13))
+        for i, expected in points:
+            actual = order_vaporized[i - 1]
+            self.assertEqual(expected, actual, f"Expected: ({expected.x()}, {expected.y()}), Actual: ({actual.x()}, {actual.y()})")
 
 def main():
     unittest.main()
