@@ -78,29 +78,23 @@ class Map:
                 point = a
         return point, max_visible
 
-    def check(self, base, point, result):
-        first = self.first_visible(base, point)
-        if first != None:
-            line = self._lines[first.y()]
-            line = line[:first.x()] + "." + line[first.x() + 1:]
-            self._lines[first.y()] = line
-            result.append(first)
+    # Return all the points in the map, sorted by angle and then distance
+    def sort_points(self, base):
+        points = list(filter(lambda p: p != base, self.all_asteroids()))
+        points.sort(key=lambda p: 1000000*p.angle_from(base) + p.distance_from(base))
+        return points
 
     def order_vaporized(self, base):
         result = []
-        count = None
-        while count != len(result):
-            count = len(result)
-            for x in range(base.x(), len(self._lines[0])):
-                self.check(base, Point(x, 0), result)
-            for y in range(0, len(self._lines)):
-                self.check(base, Point(len(self._lines[0]) - 1, y), result)
-            for x in range(len(self._lines[0]), 0, -1):
-                self.check(base, Point(x - 1, len(self._lines) - 1), result)
-            for y in range(len(self._lines), 0, -1):
-                self.check(base, Point(0, y), result)
-            for x in range(0, base.x()):
-                self.check(base, Point(x, 0), result)
+        points = self.sort_points(base)
+        while len(points) > 0:
+            i = 0
+            while i < len(points):
+                angle = points[i].angle_from(base)
+                result.append(points[i])
+                points = points[:i] + points[i+1:]
+                while i < len(points) and angle == points[i].angle_from(base):
+                    i += 1
         return result
 
 class Point:
@@ -119,6 +113,34 @@ class Point:
             return False
         return self._x == value._x and self._y == value._y
 
+    def angle_from(self, other):
+        dy = -1*(self.y() - other.y())
+        dx = self.x() - other.x()
+        if dx == 0:
+            if dy < 0:
+                angle = -1 * math.atan(math.inf)
+            else:
+                angle = math.atan(math.inf)
+        else:
+            angle = math.atan(dy/dx)
+        angle = math.degrees(angle)
+        if dx >= 0:
+            if dy > 0:
+                angle =  90 - angle # Q1
+            else:
+                angle = 90 - angle # Q4
+        else:
+            if dy > 0:
+                angle = 270 - angle # Q2
+            else:
+                angle = 270 - angle # Q3
+        return angle
+
+    def distance_from(self, other):
+        dx = self.x() - other.x()
+        dy = self.y() - other.y()
+        return math.sqrt(dx**2 + dy**2)
+
 def solve_part1():
     with open("input.txt") as f:
         content = f.read()
@@ -126,5 +148,14 @@ def solve_part1():
     point, count = map.max_visible()
     print(count)
 
+def solve_part2():
+    with open("input.txt") as f:
+        content = f.read()
+    map = Map(content)
+    point, count = map.max_visible()
+    order = map.order_vaporized(point)
+    print(100 * order[199].x() + order[199].y())
+
 if __name__ == "__main__":
-    solve_part1()
+    #solve_part1()
+    solve_part2()
