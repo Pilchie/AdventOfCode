@@ -26,14 +26,14 @@ impl ParameterMode {
 }
 
 pub struct IntCode<'a> {
-    input_provider: InputProvider,
-    output_sink: &'a mut OutputSink,
+    input_provider: &'a dyn InputProvider,
+    output_sink: &'a mut dyn OutputSink,
     relative_base: i64,
     program_counter: i64,
 }
 
 impl<'a> IntCode<'a> {
-    pub fn new(input_provider: InputProvider, output_sink: &'a mut OutputSink) -> IntCode {
+    pub fn new(input_provider: &'a dyn InputProvider, output_sink: &'a mut dyn OutputSink) -> IntCode<'a> {
         IntCode {
             input_provider,
             output_sink,
@@ -235,31 +235,41 @@ impl<'a> Memory<'a> {
     }
 }
 
-pub struct OutputSink {
-    pub output: Vec<i64>
+pub trait OutputSink {
+    fn print_output(&mut self, value: i64);
 }
 
-impl OutputSink {
-    fn print_output(&mut self, value: i64) {
-        self.output.push(value);
-    }
-}
-pub struct InputProvider {
-    pub value: i64
-}
-
-impl InputProvider {
-    fn get_input(&self) -> i64 {
-        self.value
-    }
+pub trait InputProvider {
+    fn get_input(&self) -> i64;
 }
 
 mod tests {
     use super::*;
 
+    struct TestInputProvider {
+        value: i64
+    }
+    
+    impl InputProvider for TestInputProvider {
+        fn get_input(&self) -> i64 {
+            self.value
+        }
+    }
+
+    struct TestOutputSink {
+        output: Vec<i64>
+    }
+
+    impl OutputSink for TestOutputSink {
+        fn print_output(&mut self, value: i64) {
+            self.output.push(value);
+        }
+    }
+
     fn verify(input: &mut Vec<i64>, expected: Vec<i64>) {
-        let mut output_sink = OutputSink { output: Vec::new() };
-        let mut computer = IntCode::new(InputProvider { value: 0 }, &mut output_sink);
+        let mut output_sink = TestOutputSink { output: Vec::new() };
+        let input_provider = TestInputProvider { value: 0 };
+        let mut computer = IntCode::new(&input_provider, &mut output_sink);
         computer.run_to_completion(input);
         if input.len() != expected.len() {
             panic!("Input and output lengths didn't match, expected: {}, actual {}", expected.len(), input.len());
@@ -305,8 +315,9 @@ mod tests {
     }
 
     fn verify_input_output(program: &mut Vec<i64>, input: i64, expected_output: i64) {
-        let mut output_sink = OutputSink { output: Vec::new() };
-        let mut computer = IntCode::new(InputProvider { value: input }, &mut output_sink);
+        let mut output_sink = TestOutputSink { output: Vec::new() };
+        let input_provider = TestInputProvider { value: input };
+        let mut computer = IntCode::new(&input_provider, &mut output_sink);
         computer.run_to_completion(program);
         assert_eq!(expected_output, output_sink.output[0])
     }
@@ -439,8 +450,9 @@ mod tests {
     #[test]
     fn test_day9_1() {
         let mut input = vec![109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99];
-        let mut output_sink = OutputSink { output: Vec::new() };
-        let mut computer = IntCode::new(InputProvider { value: 0 }, &mut output_sink);
+        let mut output_sink = TestOutputSink { output: Vec::new() };
+        let input_provider = TestInputProvider { value: 0 };
+        let mut computer = IntCode::new(&input_provider, &mut output_sink);
         computer.run_to_completion(&mut input);
         for (i, &item) in input.iter().enumerate() {
             assert_eq!(item, output_sink.output[i])
@@ -450,8 +462,9 @@ mod tests {
     #[test]
     fn test_day9_2() {
         let mut input = vec![1102,34915192,34915192,7,4,7,99,0];
-        let mut output_sink = OutputSink { output: Vec::new() };
-        let mut computer = IntCode::new(InputProvider { value: 0 }, &mut output_sink);
+        let mut output_sink = TestOutputSink { output: Vec::new() };
+        let input_provider = TestInputProvider { value: 0 };
+        let mut computer = IntCode::new(&input_provider, &mut output_sink);
         computer.run_to_completion(&mut input);
         let str_output = format!("{}", output_sink.output[0]);
         assert_eq!(16, str_output.len());
@@ -460,8 +473,9 @@ mod tests {
     #[test]
     fn test_day9_3() {
         let mut input = vec![104,1125899906842624,99];
-        let mut output_sink = OutputSink { output: Vec::new() };
-        let mut computer = IntCode::new(InputProvider { value: 0 }, &mut output_sink);
+        let mut output_sink = TestOutputSink { output: Vec::new() };
+        let input_provider = TestInputProvider { value: 0 };
+        let mut computer = IntCode::new(&input_provider, &mut output_sink);
         computer.run_to_completion(&mut input);
         assert_eq!(input[1], output_sink.output[0]);
     }
