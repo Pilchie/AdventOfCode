@@ -1,31 +1,265 @@
-struct IntCode<'a> {
-    input_provider: TestInputProvider,
-    output_sink: &'a mut TestOutputSink,
+use std::collections::HashMap;
+use std::convert::TryInto;
+
+enum ParameterMode {
+    Immediate,
+    Position,
+    Relative,
 }
 
-impl<'a> IntCode<'a> {
-    fn run_to_completion(&self, input: &mut Vec<i64>) {
-
+impl ParameterMode {
+    fn get(parameter_modes: i64, position: u32) -> ParameterMode {
+        let pos  = position - 1;
+        let mask = i64::pow(10, pos);
+        let modes = parameter_modes / mask;
+        let modes = modes % 10;
+        if modes == 0 {
+            return ParameterMode::Position;
+        } else if modes == 1 {
+            return ParameterMode::Immediate;
+        } else if modes == 2 {
+            return ParameterMode::Relative;
+        } else {
+            panic!("Unexpected parameter mode");
+        }
     }
 }
 
-struct TestOutputSink {
+struct IntCode<'a> {
+    input_provider: InputProvider,
+    output_sink: &'a mut OutputSink,
+    relative_base: i64,
+    program_counter: i64,
+}
+
+impl<'a> IntCode<'a> {
+    pub fn new(input_provider: InputProvider, output_sink: &'a mut OutputSink) -> IntCode {
+        IntCode {
+            input_provider,
+            output_sink,
+            relative_base: 0,
+            program_counter: 0,
+        }
+    }
+
+    pub fn run_to_completion(&mut self, input: &mut Vec<i64>) {
+        let mut memory = Memory::new(input);
+        loop {
+            self.program_counter = self.execute_next_instruction(&mut memory);
+            if self.program_counter < 0 {
+                return;
+            }
+        }
+    }
+
+    fn execute_next_instruction(&mut self, memory: &mut Memory) -> i64 {
+        let instruction = self.parse_instruction(memory);
+        instruction.execute(memory, self)
+    }
+
+    fn parse_instruction(&self, memory: &mut Memory) -> Instruction {
+        let opcode_and_parameter_modes = memory.get_at(self.program_counter);
+        let opcode = opcode_and_parameter_modes % 100;
+        let parameter_modes = opcode_and_parameter_modes / 100;
+        match opcode {
+            99 => Instruction::Stop,
+            1 => Instruction::Add(BinaryOperator::load(memory, self.program_counter, parameter_modes)),
+            2 => Instruction::Multiply(BinaryOperator::load(memory, self.program_counter, parameter_modes)),
+            3 => Instruction::Input(UnaryOperator::load(memory, self.program_counter, parameter_modes)),
+            4 => Instruction::Output(UnaryOperator::load(memory, self.program_counter, parameter_modes)),
+            5 => Instruction::JumpIfTrue(JumpOperator::load(memory, self.program_counter, parameter_modes)),
+            6 => Instruction::JumpIfFalse(JumpOperator::load(memory, self.program_counter, parameter_modes)),
+            7 => Instruction::LessThan(BinaryOperator::load(memory, self.program_counter, parameter_modes)),
+            8 => Instruction::EqualTo(BinaryOperator::load(memory, self.program_counter, parameter_modes)),
+            9 => Instruction::AdjustRelativeBase(UnaryOperator::load(memory, self.program_counter, parameter_modes)),
+            _ => panic!("Unexpected instruction"),
+        }
+    }
+}
+
+struct Parameter {
+     value: i64,
+     mode: ParameterMode,
+}
+
+impl Parameter {
+    fn load(&self, memory: &mut Memory, relative_base: i64) -> i64 {
+        match self.mode {
+            ParameterMode::Immediate => self.value,
+            ParameterMode::Position => memory.get_at(self.value),
+            ParameterMode::Relative => memory.get_at(relative_base + self.value),
+        }
+    }
+
+    fn store(&self, memory: &mut Memory, value: i64, relative_base: i64) {
+        match self.mode {
+            ParameterMode::Position => memory.set_at(self.value, value),
+            ParameterMode::Relative => memory.set_at(relative_base + self.value, value),
+            ParameterMode::Immediate => panic!("Can't store to immediate mode parameter"),
+        }
+    }
+}
+
+struct UnaryOperator {
+    position: Parameter,
+}
+
+impl UnaryOperator {
+    fn load(memory: &mut Memory, program_counter: i64, parameter_modes: i64) -> UnaryOperator {
+        UnaryOperator {
+            position: Parameter { value: memory.get_at(program_counter + 1), mode: ParameterMode::get(parameter_modes, 1) },
+        }
+    }
+}
+
+struct BinaryOperator {
+    param1: Parameter,
+    param2: Parameter,
+    output: Parameter,
+}
+
+impl BinaryOperator {
+    fn load(memory: &mut Memory, program_counter: i64, parameter_modes: i64) -> BinaryOperator {
+        BinaryOperator {
+            param1: Parameter { value: memory.get_at(program_counter + 1), mode: ParameterMode::get(parameter_modes, 1) },
+            param2: Parameter { value: memory.get_at(program_counter + 2), mode: ParameterMode::get(parameter_modes, 2) },
+            output: Parameter { value: memory.get_at(program_counter + 3), mode: ParameterMode::get(parameter_modes, 3) },
+        }
+    }
+
+    fn execute<T>(&self, computer: &IntCode, memory: &mut Memory, operation: T) -> i64 where T: Fn(i64, i64) -> i64 {
+        let input1 = self.param1.load(memory, computer.relative_base);
+        let input2 = self.param2.load(memory, computer.relative_base);
+        let result = operation(input1, input2);
+        self.output.store(memory, result, computer.relative_base);
+        computer.program_counter + 4
+    }
+}
+
+struct JumpOperator {
+    value: Parameter,
+    dest: Parameter,
+}
+
+impl JumpOperator {
+    fn load(memory: &mut Memory, program_counter: i64, parameter_modes: i64) -> JumpOperator {
+        JumpOperator {
+            value: Parameter { value: memory.get_at(program_counter + 1), mode: ParameterMode::get(parameter_modes, 1) },
+            dest: Parameter { value: memory.get_at(program_counter + 2), mode: ParameterMode::get(parameter_modes, 2) },
+        }
+    }
+
+    fn execute<T>(&self, computer: &IntCode, memory: &mut Memory, compare: T) -> i64 where T: Fn(i64) -> bool {
+        let value = self.value.load(memory, computer.relative_base);
+        let dest = self.dest.load(memory, computer.relative_base);
+        if compare(value) {
+            dest
+        } else {
+            computer.program_counter + 3
+        }
+    }
+}
+
+
+enum Instruction {
+    Stop,
+    Add(BinaryOperator),
+    Multiply(BinaryOperator),
+    Input(UnaryOperator),
+    Output(UnaryOperator),
+    JumpIfTrue(JumpOperator),
+    JumpIfFalse(JumpOperator),
+    LessThan(BinaryOperator),
+    EqualTo(BinaryOperator),
+    AdjustRelativeBase(UnaryOperator),
+}
+
+impl Instruction {
+    fn execute(&self, memory: &mut Memory, computer: &mut IntCode) -> i64 {
+        match self {
+            Instruction::Stop => -1,
+            Instruction::Add(binary_operator) => binary_operator.execute(computer, memory, |a, b| a + b),
+            Instruction::Multiply(binary_operator) => binary_operator.execute(computer, memory, |a, b| a * b),
+            Instruction::Input(unary_operator) => {
+                let value = computer.input_provider.get_input();
+                unary_operator.position.store(memory, value, computer.relative_base);
+                computer.program_counter + 2
+            },
+            Instruction::Output(unary_operator) => {
+                let output = unary_operator.position.load(memory, computer.relative_base);
+                computer.output_sink.print_output(output);
+                computer.program_counter + 2
+            }
+            Instruction::JumpIfTrue(jump_operator) => jump_operator.execute(computer, memory, |a| a != 0),
+            Instruction::JumpIfFalse(jump_operator) =>  jump_operator.execute(computer, memory, |a| a == 0),
+            Instruction::LessThan(binary_operator) => binary_operator.execute(computer, memory, |a, b| if a < b { 1 } else { 0 }),
+            Instruction::EqualTo(binary_operator) => binary_operator.execute(computer, memory, |a, b| if a == b { 1 } else { 0 }),
+            Instruction::AdjustRelativeBase(unary_operator) => {
+                let value = unary_operator.position.load(memory, computer.relative_base);
+                computer.relative_base += value;
+                computer.program_counter + 2
+            }
+        }
+    }
+}
+
+struct Memory<'a> {
+    memory: &'a mut Vec<i64>,
+    other_values: HashMap<usize, i64>,
+}
+
+impl<'a> Memory<'a> {
+    fn new(memory: &'a mut Vec<i64>) -> Memory {
+        Memory {
+            memory,
+            other_values: HashMap::new(),
+        }
+    }
+    fn get_at(&mut self, address: i64) -> i64 {
+        let addr = address.try_into().unwrap();
+        if  addr < self.memory.len() {
+            return self.memory[addr]
+        } else {
+            let value = self.other_values.entry(addr).or_insert(0);
+            return *value;
+        }
+    }
+
+    fn set_at(&mut self, address: i64, value: i64) {
+        let addr = address.try_into().unwrap();
+        if addr < self.memory.len() {
+            self.memory[addr] = value;
+        } else {
+            self.other_values.insert(addr, value);
+        }
+    }
+}
+
+struct OutputSink {
     output: Vec<i64>
 }
 
-struct TestInputProvider {
+impl OutputSink {
+    fn print_output(&mut self, value: i64) {
+        self.output.push(value);
+    }
+}
+struct InputProvider {
     value: i64
 }
 
-#[cfg(test)]
+impl InputProvider {
+    fn get_input(&self) -> i64 {
+        self.value
+    }
+}
+
 mod tests {
     use super::*;
 
     fn verify(input: &mut Vec<i64>, expected: Vec<i64>) {
-        let computer = IntCode {
-            input_provider: TestInputProvider { value: 0 },
-            output_sink: &mut TestOutputSink { output: Vec::new() },
-        };
+        let mut output_sink = OutputSink { output: Vec::new() };
+        let mut computer = IntCode::new(InputProvider { value: 0 }, &mut output_sink);
         computer.run_to_completion(input);
         if input.len() != expected.len() {
             panic!("Input and output lengths didn't match, expected: {}, actual {}", expected.len(), input.len());
@@ -71,11 +305,8 @@ mod tests {
     }
 
     fn verify_input_output(program: &mut Vec<i64>, input: i64, expected_output: i64) {
-        let mut output_sink = TestOutputSink { output: Vec::new() };
-        let computer = IntCode {
-            input_provider: TestInputProvider { value: input },
-            output_sink: &mut output_sink,
-        };
+        let mut output_sink = OutputSink { output: Vec::new() };
+        let mut computer = IntCode::new(InputProvider { value: input }, &mut output_sink);
         computer.run_to_completion(program);
         assert_eq!(expected_output, output_sink.output[0])
     }
@@ -208,11 +439,8 @@ mod tests {
     #[test]
     fn test_day9_1() {
         let mut input = vec![109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99];
-        let mut output_sink = TestOutputSink { output: Vec::new() };
-        let computer = IntCode {
-            input_provider: TestInputProvider { value: 0 }, 
-            output_sink: &mut output_sink,
-        };
+        let mut output_sink = OutputSink { output: Vec::new() };
+        let mut computer = IntCode::new(InputProvider { value: 0 }, &mut output_sink);
         computer.run_to_completion(&mut input);
         for (i, &item) in input.iter().enumerate() {
             assert_eq!(item, output_sink.output[i])
@@ -222,11 +450,8 @@ mod tests {
     #[test]
     fn test_day9_2() {
         let mut input = vec![1102,34915192,34915192,7,4,7,99,0];
-        let mut output_sink = TestOutputSink { output: Vec::new() };
-        let computer = IntCode {
-            input_provider: TestInputProvider { value: 0 },
-            output_sink: &mut output_sink,
-        };
+        let mut output_sink = OutputSink { output: Vec::new() };
+        let mut computer = IntCode::new(InputProvider { value: 0 }, &mut output_sink);
         computer.run_to_completion(&mut input);
         let str_output = format!("{}", output_sink.output[0]);
         assert_eq!(16, str_output.len());
@@ -235,11 +460,8 @@ mod tests {
     #[test]
     fn test_day9_3() {
         let mut input = vec![104,1125899906842624,99];
-        let mut output_sink = TestOutputSink { output: Vec::new() };
-        let computer = IntCode {
-            input_provider: TestInputProvider { value: 0 },
-            output_sink: &mut output_sink,
-        };
+        let mut output_sink = OutputSink { output: Vec::new() };
+        let mut computer = IntCode::new(InputProvider { value: 0 }, &mut output_sink);
         computer.run_to_completion(&mut input);
         assert_eq!(input[1], output_sink.output[0]);
     }
