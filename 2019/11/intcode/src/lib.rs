@@ -25,7 +25,7 @@ impl ParameterMode {
     }
 }
 
-struct IntCode<'a> {
+pub struct IntCode<'a> {
     input_provider: InputProvider,
     output_sink: &'a mut OutputSink,
     relative_base: i64,
@@ -235,8 +235,8 @@ impl<'a> Memory<'a> {
     }
 }
 
-struct OutputSink {
-    output: Vec<i64>
+pub struct OutputSink {
+    pub output: Vec<i64>
 }
 
 impl OutputSink {
@@ -244,8 +244,8 @@ impl OutputSink {
         self.output.push(value);
     }
 }
-struct InputProvider {
-    value: i64
+pub struct InputProvider {
+    pub value: i64
 }
 
 impl InputProvider {
