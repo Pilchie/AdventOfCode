@@ -10,7 +10,7 @@ fn part1() {
     let mut moons = [ Moon::new(19, -10, 7), Moon::new(1, 2, -3), Moon::new(14, -4, 1), Moon::new(8, 7, -6), ];
 
     for _ in 0..1000 {
-        step(&mut moons);
+        step_other(&mut moons);
     }
 
    let total_energy: i32 = moons.iter().map(|m| m.total_energy()).sum();

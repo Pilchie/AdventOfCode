@@ -8,8 +8,21 @@ fn assert_moons(actual: &[Moon], expected: &[Moon]) {
 }
 
 fn step10(moons: &mut [Moon]) {
+    let mut px: Vec<i32> = moons.iter().map(|m| m.position.x).collect();
+    let mut py: Vec<i32> = moons.iter().map(|m| m.position.y).collect();
+    let mut pz: Vec<i32> = moons.iter().map(|m| m.position.z).collect();
+    let mut vx: Vec<i32> = moons.iter().map(|m| m.velocity.x).collect();
+    let mut vy: Vec<i32> = moons.iter().map(|m| m.velocity.y).collect();
+    let mut vz: Vec<i32> = moons.iter().map(|m| m.velocity.z).collect();
+
     for _ in 0..10 {
-        step(moons);
+        step_one(&mut px, &mut vx);
+        step_one(&mut py, &mut vy);
+        step_one(&mut pz, &mut vz);
+    }
+
+    for i in 0..moons.len() {
+        moons[i] = Moon { position: Vector3D { x: px[i], y: py[i], z: pz[i]}, velocity: Vector3D { x: vx[i], y: vy[i], z: vz[i] } }
     }
 }
 
