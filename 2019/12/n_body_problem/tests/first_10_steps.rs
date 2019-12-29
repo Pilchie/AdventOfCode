@@ -149,3 +149,10 @@ fn first_ten_steps() {
 
     assert_eq!(179, moons.iter().map(|m| m.total_energy()).sum());
 }
+
+#[test]
+fn test_repeats() {
+    let mut moons = [ Moon::new(-1, 0, 2), Moon::new(2, -10, -7), Moon::new(4, -8, 8), Moon::new(3, 5, -1), ];
+    let count = find_repeat(&mut moons);
+    assert_eq!(2772, count);
+}
