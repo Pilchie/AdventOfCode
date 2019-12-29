@@ -1,3 +1,5 @@
+use std::ops::Add;
+
 #[derive(Debug)]
 pub struct Vector3D {
     pub x: i32,
@@ -13,7 +15,7 @@ impl Clone for Vector3D {
 
 impl Copy for Vector3D {}
 
-impl std::ops::Add for Vector3D {
+impl Add for Vector3D {
     type Output = Vector3D;
 
     fn add(self, rhs: Vector3D) -> Vector3D {
@@ -80,7 +82,7 @@ impl Moon {
     }
 }
 
-pub fn step(moons: &mut Vec<Moon>) {
+pub fn step(moons: &mut [Moon]) {
     let len = moons.len();
     for i1 in 0..len {
         for i2 in (i1 + 1)..len {
@@ -115,4 +117,19 @@ fn update_velocity(m1: &Moon, m2: &Moon) -> (Moon, Moon) {
         Moon { position: m1.position, velocity: Vector3D { x: vx1, y: vy1, z: vz1 } },
         Moon { position: m2.position, velocity: Vector3D { x: vx2, y: vy2, z: vz2 } },
     )
+}
+
+pub fn find_repeat(moons: &mut[Moon; 4]) -> u128 {
+    for index in 1..std::u128::MAX {
+        step(moons);
+        if moons.iter().all(|m| m.velocity == Vector3D { x: 0, y: 0, z: 0 }) {
+            return index*2
+        }
+
+        if index % 1_000_000 == 0 {
+            println!("Checked {}", index);
+        }
+    }
+
+    panic!("reached the end of u128?")
 }
