@@ -6,6 +6,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     let mut program = parse_input_file(&args[1]);
+    program[0] = 2;
     play_game(&mut program);
 }
 
