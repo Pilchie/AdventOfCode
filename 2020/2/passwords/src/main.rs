@@ -13,7 +13,7 @@ fn main() {
     for line in reader.lines() {
         total += 1;
         let pwl = PasswordLine::parse(&line.unwrap());
-        if !pwl.is_valid() {
+        if !pwl.is_valid_part2() {
             bad += 1;
             println!("Found an invalid password line: {:#?}", pwl);
         }

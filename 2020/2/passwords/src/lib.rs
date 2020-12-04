@@ -44,7 +44,7 @@ impl PasswordLine {
         }
     }
 
-    pub fn is_valid(&self) -> bool {
+    pub fn is_valid_part1(&self) -> bool {
         let mut count: i32 = 0;
         for c in self.password.chars() {
             if c == self.letter {
@@ -53,5 +53,16 @@ impl PasswordLine {
         }
 
         count >= self.min && count <= self.max
+    }
+
+    pub fn is_valid_part2(&self) -> bool {
+        let charmin = self.password.chars().nth((self.min - 1) as usize).unwrap();
+        let charmax = self.password.chars().nth((self.max - 1) as usize).unwrap();
+
+        println!("letter: {}, min: {}, max: {}, password: {}, charmin: {}, charmax: {}",
+            self.letter, self.min, self.max, self.password, charmin, charmax);
+
+        charmin == self.letter && charmax != self.letter
+            || charmin != self.letter && charmax == self.letter
     }
 }
