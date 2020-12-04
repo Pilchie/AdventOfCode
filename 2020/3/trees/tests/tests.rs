@@ -2,7 +2,7 @@ use trees::*;
 
 #[test]
 fn is_tree_tests() {
-    let map = Map::parseString(
+    let map = Map::parse_string(
    "..##.......
     #...#...#..
     .#....#..#.
@@ -28,7 +28,7 @@ fn is_tree_tests() {
 
 #[test]
 fn count_trees_test() {
-    let map = Map::parseString(
+    let map = Map::parse_string(
    "..##.......
     #...#...#..
     .#....#..#.
@@ -41,5 +41,31 @@ fn count_trees_test() {
     #...##....#
     .#..#...#.#");
 
-    assert_eq!(7, map.count_trees());
+    assert_eq!(7, map.count_trees(3, 1));
+}
+
+#[test]
+fn count_trees_multiple_slopes() {
+    assert_slope(2, 1, 1);
+    assert_slope(7, 3, 1);
+    assert_slope(3, 5, 1);
+    assert_slope(4, 7, 1);
+    assert_slope(2, 1, 2);
+}
+
+fn assert_slope(expected: i32, right: i32, down: i32) {
+    let map = Map::parse_string(
+       "..##.......
+        #...#...#..
+        .#....#..#.
+        ..#.#...#.#
+        .#...##..#.
+        ..#.##.....
+        .#.#.#....#
+        .#........#
+        #.##...#...
+        #...##....#
+        .#..#...#.#");
+
+    assert_eq!(expected, map.count_trees(right, down));
 }
