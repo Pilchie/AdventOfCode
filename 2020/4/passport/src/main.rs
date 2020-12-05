@@ -23,7 +23,10 @@ fn main() {
     passports.push(passport);
 
     println!("Found {} total passports", passports.len());
-    println!("Found {} valid passports", passports.iter().filter(|p| p.is_valid()).count());
+    println!(
+        "Found {} valid passports",
+        passports.iter().filter(|p| p.is_valid()).count()
+    );
 }
 
 pub struct Passport {
@@ -94,14 +97,14 @@ impl Passport {
     }
 
     pub fn is_valid(&self) -> bool {
-        match self.birth_year {
-            Some(_) => match self.issue_year {
-                Some(_) => match self.expiration_year {
-                    Some(_) => match self.height {
-                        Some(_) => match self.hair_color {
-                            Some(_) => match self.eye_color {
-                                Some(_) => match self.passport_id {
-                                    Some(_) => true,
+        match &self.birth_year {
+            Some(byr) => is_valid_year(&byr, 1920, 2002) && match &self.issue_year {
+                Some(iyr) => is_valid_year(&iyr, 2010, 2020) && match &self.expiration_year {
+                    Some(eyr) => is_valid_year(&eyr, 2020, 2030) && match &self.height {
+                        Some(h) => is_valid_height(h) && match &self.hair_color {
+                            Some(hcl) => is_valid_hair_color(hcl) && match &self.eye_color {
+                                Some(ecl) => is_valid_eye_color(ecl) && match &self.passport_id {
+                                    Some(pid) => is_valid_passport_id(pid),
                                     None => false,
                                 },
                                 None => false,
@@ -116,6 +119,69 @@ impl Passport {
             },
             None => false,
         }
+    }
+}
+
+fn is_valid_year(value: &str, min: usize, max: usize) -> bool {
+    if value.len() != 4 {
+        return false;
+    }
+
+    let v = value.parse::<usize>().unwrap();
+    min <= v && v <= max
+}
+
+fn is_valid_hair_color(value: &str) -> bool {
+    if value.len() != 7 {
+        return false;
+    }
+
+    let mut chars = value.chars();
+    if chars.next().unwrap() != '#' {
+        return false;
+    }
+
+    for _ in 1..6 {
+        if !chars.next().unwrap().is_digit(16) {
+            return false;
+        }
+    }
+    true
+}
+
+fn is_valid_eye_color(value: &str) -> bool {
+    match value {
+        "amb" => true,
+        "blu" => true,
+        "brn" => true,
+        "gry" => true,
+        "grn" => true,
+        "hzl" => true,
+        "oth" => true,
+        _ => false,
+    }
+}
+
+fn is_valid_passport_id(value: &str) -> bool {
+    value.len() == 9 && value.chars().all(|c| c.is_digit(10))
+}
+
+fn is_valid_height(value: &str) -> bool {
+    if value.ends_with(&"cm") {
+        return is_between(value, 150, 193);
+    } else if value.ends_with(&"in") {
+        return is_between(value, 59, 76);
+    }
+
+    false
+}
+
+fn is_between(value: &str, min: usize, max: usize) -> bool {
+    let len = value.len();
+    let v = value[0..len - 2].parse::<usize>();
+    match v {
+        Ok(vv) => vv >= min && vv <= max,
+        Err(_) => false,
     }
 }
 
@@ -159,4 +225,24 @@ fn is_valid_passport_fourth() {
     );
 
     assert_eq!(false, passport.is_valid());
+}
+
+#[test]
+fn test_height_60in() {
+    assert_eq!(true, is_valid_height("60in"));
+}
+
+#[test]
+fn test_height_190cm() {
+    assert_eq!(true, is_valid_height("190cm"));
+}
+
+#[test]
+fn test_height_190in() {
+    assert_eq!(false, is_valid_height("190in"));
+}
+
+#[test]
+fn test_height_190() {
+    assert_eq!(false, is_valid_height("190"));
 }
