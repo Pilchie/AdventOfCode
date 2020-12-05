@@ -36,7 +36,7 @@ impl Map {
         self.trees[row].chars().nth(c).unwrap() == '#'
     }
 
-    pub fn count_trees(&self, right: i32, down: i32) -> i32 {
+    pub fn count_trees(&self, right: usize, down: usize) -> usize {
         let mut row = 0;
         let mut col = 0;
         let mut count = 0;
@@ -44,8 +44,8 @@ impl Map {
             if self.is_tree(row, col) {
                 count += 1;
             }
-            row += down as usize;
-            col += right as usize;
+            row += down;
+            col += right;
         }
 
         count

@@ -53,7 +53,7 @@ fn count_trees_multiple_slopes() {
     assert_slope(2, 1, 2);
 }
 
-fn assert_slope(expected: i32, right: i32, down: i32) {
+fn assert_slope(expected: usize, right: usize, down: usize) {
     let map = Map::parse_string(
        "..##.......
         #...#...#..
