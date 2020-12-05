@@ -25,7 +25,8 @@ fn main() -> Result<(), Error> {
             let id = 8 * row + col;
             if !all_passes.contains(&id)
                 && all_passes.contains(&(id - 1))
-                && all_passes.contains(&(id + 1)) {
+                && all_passes.contains(&(id + 1))
+            {
                 println!("Your seat id is {}", id);
             }
         }
@@ -57,7 +58,6 @@ pub struct BoardingPass {
 pub enum Error {
     InvalidBoardingPass,
     IOError(std::io::Error),
-
 }
 
 impl std::convert::From<std::io::Error> for Error {
@@ -68,14 +68,14 @@ impl std::convert::From<std::io::Error> for Error {
 
 impl BoardingPass {
     pub fn new(definition: &str) -> Result<BoardingPass, Error> {
-        if definition.len() == 10 && 
-            chars_in(&definition[0..7], &['F', 'B']) &&
-            chars_in(&definition[8..10], &['L', 'R']) {
+        if definition.len() == 10
+            && chars_in(&definition[0..7], &['F', 'B'])
+            && chars_in(&definition[8..10], &['L', 'R'])
+        {
             Ok(BoardingPass {
-                definition: definition.into()
+                definition: definition.into(),
             })
-        }
-        else {
+        } else {
             Err(Error::InvalidBoardingPass)
         }
     }
@@ -106,17 +106,15 @@ fn chars_in(val: &str, allowed: &[char]) -> bool {
 fn bsp(val: &str, up: char, down: char) -> usize {
     let mut min = 0;
     let mut max = (2 << val.len() - 1) - 1;
-    let mut mid = max/2;
+    let mut mid = max / 2;
 
     //println!("Initial: min: {}, mid: {}, max: {}", min, mid, max);
     for c in val.chars() {
         if c == up {
             min = mid + 1;
-        }
-        else if c == down {
+        } else if c == down {
             max = mid;
-        }
-        else {
+        } else {
             panic!();
         }
 
