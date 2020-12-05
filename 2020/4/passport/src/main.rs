@@ -192,7 +192,7 @@ fn is_valid_passport_first() {
         byr:1937 iyr:2017 cid:147 hgt:183cm",
     );
 
-    assert_eq!(true, passport.is_valid());
+    assert!(passport.is_valid());
 }
 
 #[test]
@@ -202,7 +202,7 @@ fn is_valid_passport_second() {
         hcl:#cfa07d byr:1929",
     );
 
-    assert_eq!(false, passport.is_valid());
+    assert!(!passport.is_valid());
 }
 
 #[test]
@@ -214,7 +214,7 @@ fn is_valid_passport_third() {
         hgt:179cm",
     );
 
-    assert_eq!(true, passport.is_valid());
+    assert!(passport.is_valid());
 }
 
 #[test]
@@ -224,7 +224,7 @@ fn is_valid_passport_fourth() {
         iyr:2011 ecl:brn hgt:59in",
     );
 
-    assert_eq!(false, passport.is_valid());
+    assert!(!passport.is_valid());
 }
 
 #[test]
@@ -234,15 +234,15 @@ fn test_height_60in() {
 
 #[test]
 fn test_height_190cm() {
-    assert_eq!(true, is_valid_height("190cm"));
+    assert!(is_valid_height("190cm"));
 }
 
 #[test]
 fn test_height_190in() {
-    assert_eq!(false, is_valid_height("190in"));
+    assert!(!is_valid_height("190in"));
 }
 
 #[test]
 fn test_height_190() {
-    assert_eq!(false, is_valid_height("190"));
+    assert!(!is_valid_height("190"));
 }
