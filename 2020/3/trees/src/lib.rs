@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{self, BufRead};
 
 pub struct Map {
-    trees: Vec<String>
+    trees: Vec<Vec<bool>>
 }
 
 impl Map {
@@ -15,7 +15,7 @@ impl Map {
             trees.push(line.unwrap());
         }
 
-        Map::parse_lines(trees)
+        Map::parse_lines(&trees)
     }
 
     pub fn parse_string(map: &str) -> Map {
@@ -23,17 +23,27 @@ impl Map {
         for line in map.split_whitespace() {
             trees.push(String::from(line));
         }
-        Map::parse_lines(trees)
+        Map::parse_lines(&trees)
     }
 
-    fn parse_lines(map: Vec<String>) -> Map {
-        Map { trees: map }
+    fn parse_lines(map: &[String]) -> Map {
+        let mut t = Vec::new();
+        for r in map {
+            let mut row = Vec::new();
+            for c in r.chars() {
+                row.push(c=='#');
+            }
+            t.push(row);
+        }
+        Map {
+            trees: t
+        }
     }
 
     pub fn is_tree(&self, row: usize, col: usize) -> bool {
         let len = self.trees[0].len();
         let c = col % len;
-        self.trees[row].chars().nth(c).unwrap() == '#'
+        self.trees[row][c]
     }
 
     pub fn count_trees(&self, right: usize, down: usize) -> usize {
