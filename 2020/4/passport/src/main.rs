@@ -229,7 +229,7 @@ fn is_valid_passport_fourth() {
 
 #[test]
 fn test_height_60in() {
-    assert_eq!(true, is_valid_height("60in"));
+    assert!(is_valid_height("60in"));
 }
 
 #[test]
