@@ -16,9 +16,11 @@ fn main() {
             passports.push(passport);
             current = String::from("");
         } else {
-            current = current + &l;
+            current = current + " " + &l;
         }
     }
+    let passport = Passport::from_string(&current);
+    passports.push(passport);
 
     println!("Found {} total passports", passports.len());
     println!("Found {} valid passports", passports.iter().filter(|p| p.is_valid()).count());
