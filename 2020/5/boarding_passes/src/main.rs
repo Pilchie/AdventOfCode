@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::env;
 use std::fs::File;
 use std::io::{self, BufRead};
@@ -7,6 +8,33 @@ fn main() -> Result<(), Error> {
     let file = File::open(&args[1])?;
     let reader = io::BufReader::new(file);
 
+    // if let Ok(max) = max_id(reader) {
+    //     println!("The largest id is {}", max);
+    // }
+
+    let mut all_passes = HashSet::new();
+    for line in reader.lines() {
+        if let Ok(l) = line {
+            let bp = BoardingPass::new(&l)?;
+            all_passes.insert(bp.seat_id());
+        }
+    }
+
+    for row in 1..127 {
+        for col in 0..7 {
+            let id = 8 * row + col;
+            if !all_passes.contains(&id)
+                && all_passes.contains(&(id - 1))
+                && all_passes.contains(&(id + 1)) {
+                println!("Your seat id is {}", id);
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn max_id(reader: io::BufReader<std::fs::File>) -> Result<usize, Error> {
     let mut max = 0;
     for line in reader.lines() {
         if let Ok(l) = line {
@@ -18,9 +46,7 @@ fn main() -> Result<(), Error> {
         }
     }
 
-    println!("The largest id is {}", max);
-
-    Ok(())
+    Ok(max)
 }
 
 pub struct BoardingPass {
