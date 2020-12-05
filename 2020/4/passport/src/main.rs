@@ -57,7 +57,7 @@ impl Passport {
             let value = items.next().unwrap();
             match name {
                 "byr" => {
-                    birth_year = Some(String::from(value));
+                    birth_year = Some(value.into());
                 }
                 "iyr" => {
                     issue_year = Some(String::from(value));
