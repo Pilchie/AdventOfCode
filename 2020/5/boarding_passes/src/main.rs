@@ -35,7 +35,7 @@ fn main() -> Result<(), Error> {
     Ok(())
 }
 
-fn max_id(reader: io::BufReader<std::fs::File>) -> Result<usize, Error> {
+fn max_id<R: BufRead>(reader: R) -> Result<usize, Error> {
     let mut max = 0;
     for line in reader.lines() {
         if let Ok(l) = line {
