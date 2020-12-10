@@ -86,7 +86,7 @@ impl Instruction {
         let val = parts[1].parse::<isize>()?;
 
         match parts[0] {
-            "nop" => Ok(Instruction::Nop(0)),
+            "nop" => Ok(Instruction::Nop(val)),
             "acc" => Ok(Instruction::Acc(val)),
             "jmp" => Ok(Instruction::Jmp(val)),
             _ => Err(Error::UnexpectedInstruction),
