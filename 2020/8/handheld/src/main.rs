@@ -73,8 +73,7 @@ impl From<ParseIntError> for Error {
     }
 }
 
-#[derive(Debug)]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Instruction {
     Acc(isize),
     Jmp(isize),
