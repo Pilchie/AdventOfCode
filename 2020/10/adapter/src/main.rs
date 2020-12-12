@@ -1,4 +1,4 @@
-use std::cmp::min;
+use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Error};
@@ -36,42 +36,39 @@ pub fn ratings(adapters: &[usize]) -> usize {
     ones * threes
 }
 
+fn paths(index: usize, adapters: &[usize], knownpaths: &mut HashMap<usize, usize>) -> usize {
+    match knownpaths.get(&index) {
+        Some(paths) => *paths,
+        None => {
+            let val = match index {
+                0 => 1,
+                1 => 1,
+                x => {
+                    let mut v = 0;
+                    for y in 1..4 {
+                        if x >= y && adapters[x-y] - adapters[x] <= 3 {
+                            v += paths(x-y, adapters, knownpaths);
+                        }
+                    }
+                    v
+                }
+            };
+
+            knownpaths.insert(index, val);
+            val
+        }
+    }
+}
+
 pub fn combos(adapters: &[usize]) -> usize {
     let mut sorted = adapters.to_vec();
     sorted.push(0);
     sorted.push(sorted.iter().max().unwrap() + 3);
     sorted.sort();
+    sorted.reverse();
 
-    let mut next: Vec<usize> = Vec::new();
-    let mut count = 0;
-    next.push(0);
-
-    println!("Dealing with a length of {}", sorted.len());
-
-    let mut step = 1;
-    while !next.is_empty() {
-        let cur = next.clone();
-        next.clear();
-        let mut stepcount = 0;
-        for index in cur {
-            if index == sorted.len() - 1 {
-                stepcount += 1;
-            } else {
-                for x in index + 1..min(index + 4, sorted.len()) {
-                    //println!("Checking items at index {} and {}", x, index);
-                    if sorted[x] - sorted[index] <= 3 {
-                        next.push(x);
-                    }
-                }
-            }
-        }
-
-        println!("Finished step {}, pushed {} to next, ended {}", step, next.len(), stepcount);
-        step += 1;
-        count += stepcount;
-    }
-
-    count
+    let mut knownpaths: HashMap<usize, usize> = HashMap::new();
+    paths(sorted.len() - 1, &sorted, &mut knownpaths)
 }
 
 #[cfg(test)]
