@@ -7,6 +7,7 @@ fn main() -> Result<(), std::io::Error> {
 
     let foods = FoodSet::parse_list(&mut BufReader::new(std::fs::File::open(&args[1])?));
     println!("Found {}", foods.count_of_non_allergens());
+    println!("Dangerous list is {}", foods.dangerous_list());
 
     Ok(())
 }
@@ -43,12 +44,10 @@ impl FoodSet {
         }
     }
 
-    pub fn count_of_non_allergens(&self) -> usize {
-        let all_ingredients: HashSet<_> = self.foods.iter().flat_map(|f| f.ingredients.iter()).collect();
+    pub fn map_allergens(&self) -> HashMap<String, String> {
 
         let mut all_allergens: HashSet<_> = self.foods.iter().flat_map(|f| f.allergens.iter()).collect();
         let mut foods = self.foods.clone();
-
         let mut known_allergens = HashMap::new();
         while !all_allergens.is_empty() {
             match match_one(&foods, &all_allergens) {
@@ -62,7 +61,13 @@ impl FoodSet {
             }
         }
 
+        known_allergens
+    }
+
+    pub fn count_of_non_allergens(&self) -> usize {
+        let known_allergens = self.map_allergens();
         let mut res = 0;
+        let all_ingredients: HashSet<_> = self.foods.iter().flat_map(|f| f.ingredients.iter()).collect();
         for i in all_ingredients {
             if !known_allergens.contains_key(i) {
                 for f in &self.foods {
@@ -74,6 +79,16 @@ impl FoodSet {
         }
 
         res
+    }
+
+    pub fn dangerous_list(&self) -> String {
+        let known_allergens = self.map_allergens();
+        let rev_map:HashMap<String, String>= known_allergens.iter().map(|(k,v)| (v.clone(),k.clone())).collect();
+        let all_allergens : HashSet<String> = self.foods.iter().flat_map(|f| f.allergens.iter()).map(|s| s.clone()).collect();
+        let mut sorted_allergens: Vec<String> = all_allergens.iter().map(|s| s.clone()).collect();
+        sorted_allergens.sort();
+        let res = sorted_allergens.iter().fold(String::from(""), |acc, all| format!("{},{}", acc, rev_map[all]));
+        String::from(&res[1..])
     }
 }
 
@@ -129,5 +144,6 @@ trh fvjkl sbzzf mxmxvkd (contains dairy)
 sqjhc fvjkl (contains soy)
 sqjhc mxmxvkd sbzzf (contains fish)"));
         assert_eq!(5, food_set.count_of_non_allergens());
+        assert_eq!("mxmxvkd,sqjhc,fvjkl", food_set.dangerous_list());
     }
 }
