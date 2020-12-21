@@ -6,7 +6,15 @@ fn main() -> Result<(), Error> {
     let image = Image::parse(&mut BufReader::new(std::fs::File::open(&args[1])?))?;
     let res = image.solve();
     let product = res[0][0].id * res[0][res[0].len() - 1].id * res[res.len() - 1][0].id * res[res.len() - 1][res[res.len() - 1].len() - 1].id;
-    println!("{}", product);
+    let (count, final_image) = Image::count_rough(&Image::assemble(&res));
+    println!("Product of corners: {}, rough seas: {}", product, count);
+
+    for row in final_image {
+        for c in row {
+            print!("{}", c as char);
+        }
+        println!("");
+    }
     Ok(())
 }
 
@@ -176,6 +184,69 @@ impl Image {
         res
     }
 
+    pub fn assemble(tiles: &Vec<Vec<Tile>>) -> Vec<Vec<u8>> {
+        let mut res = Vec::new();
+        for ty in tiles {
+            for y in 1..9 {
+                let mut row = Vec::new();
+                for tx in ty {
+                    for x in 1..9 {
+                        row.push(tx.pixels[y][x]);
+                    }
+                }
+                res.push(row);
+            }
+        }
+
+        res
+    }
+
+    pub fn count_rough(input: &Vec<Vec<u8>>) -> (usize, Vec<Vec<u8>>) {
+        let monster = "                  # 
+#    ##    ##    ###
+ #  #  #  #  #  #   ";
+        let mut monster_points = Vec::new();
+        for (y, line) in monster.lines().enumerate() {
+            for (x, b) in line.bytes().enumerate() {
+                if b == b'#' {
+                    monster_points.push((y, x));
+                }
+            }
+        }
+
+        let mut image = input.clone();
+        let mut monsters = 0;
+        while monsters == 0 {
+            for y in 0..image.len() - monster.lines().count() {
+                for x in 0..image[y].len() - monster.lines().nth(0).unwrap().len() {
+                    if Self::replace_monster(&mut image, y, x, &monster_points) {
+                        monsters += 1;
+                    }
+                }
+            }
+            image = rotate(&image);
+        }
+
+        let mut count = 0;
+        for y in 0..image.len() {
+            for x in 0..image[y].len() {
+                if image[y][x] == b'#' {
+                    count += 1;
+                }
+            }
+        }
+
+        (count, image)
+    }
+
+    fn replace_monster(image: &mut Vec<Vec<u8>>, y: usize, x:usize, monster_points: &Vec<(usize, usize)>) -> bool {
+        if monster_points.iter().all(|(dy, dx)| image[y + dy][x + dx] == b'#') {
+            monster_points.iter().for_each(|(dy, dx)| image[y + dy][x + dx] = b'O');
+            return true;
+        }
+        false
+    }
+
     fn border_has_match(&self, border: usize, tile_id: usize) -> bool {
         self.tiles.iter().any(|t| t.has_border(border) && t.id != tile_id)
     }
@@ -200,6 +271,7 @@ pub struct Tile {
     top: usize,
     right: usize,
     bottom: usize,
+    pixels: Vec<Vec<u8>>,
 }
 
 impl Tile {
@@ -210,12 +282,21 @@ impl Tile {
             Self::border_id(lines.iter().map(|l| l.bytes().nth(0).unwrap())),
             Self::border_id(lines.iter().map(|l| l.bytes().nth(9).unwrap()))
         );
+        let mut pixels = Vec::new();
+        for l in lines {
+            let mut line = Vec::new();
+            for b in l.bytes() {
+                line.push(b);
+            }
+            pixels.push(line);
+        }
         Self {
             id: id,
             left: left,
             top: top,
             right: right,
             bottom: bottom,
+            pixels: pixels,
         }
     }
 
@@ -245,24 +326,60 @@ impl Tile {
     }
 
     fn rotate(&self) -> Self {
+        let pixels = rotate(&self.pixels);
+
         Self {
             id: self.id,
             left: self.top,
             top: self.right,
             right: self.bottom,
             bottom: self.left,
+            pixels: pixels,
         }
     }
 
     fn flip(&self) -> Self {
+        let mut pixels = Vec::new();
+        for i in 0..self.pixels.len() {
+            pixels.push(self.pixels[self.pixels.len() - 1 - i].clone());
+        }
         Self {
             id: self.id,
             left: self.left,
             top: self.bottom,
             right: self.right,
             bottom: self.top,
+            pixels: pixels,
         }
     }
+}
+
+pub fn rotate<T: Copy>(incoming: &Vec<Vec<T>>) -> Vec<Vec<T>> {
+    let mut matrix = Vec::new();
+    for i in 0..incoming.len() {
+        matrix.push(incoming[i].clone());
+    }
+
+    let n = matrix.len();
+    for x in 0..n/2 {
+        for y in x..n-x-1 {
+            let temp = matrix[x][y];
+
+            // Move values from right to top
+            matrix[x][y] = matrix[y][n - 1 - x];
+
+            // Move values from bottom to right
+            matrix[y][n - 1 - x] = matrix[n - 1 - x][n - 1 - y];
+
+            // Move values from left to bottom
+            matrix[n - 1 - x][n - 1 - y] = matrix[n - 1 - y][x];
+
+            // Assign temp to left
+            matrix[n - 1 - y][x] = temp;
+        }
+    }
+
+    matrix
 }
 
 #[cfg(test)]
@@ -386,7 +503,8 @@ Tile 3079:
         let res = image.solve();
         let product = res[0][0].id * res[0][res[0].len() - 1].id * res[res.len() - 1][0].id * res[res.len() - 1][res[res.len() - 1].len() - 1].id;
         assert_eq!(20899048083289, product);
-
+        let (count, _) = Image::count_rough(&Image::assemble(&res));
+        assert_eq!(273, count);
         Ok(())
     }
 }
