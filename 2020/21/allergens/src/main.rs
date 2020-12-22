@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::io::{BufRead, BufReader};
 
 fn main() -> Result<(), std::io::Error> {
     let args: Vec<_> = std::env::args().collect();
 
-    let foods = FoodSet::parse_list(&mut BufReader::new(std::fs::File::open(&args[1])?));
+    let input = std::fs::read_to_string(&args[1])?;
+    let foods = FoodSet::parse_list(&input);
     println!("Found {}", foods.count_of_non_allergens());
     println!("Dangerous list is {}", foods.dangerous_list());
 
@@ -13,30 +13,28 @@ fn main() -> Result<(), std::io::Error> {
 }
 
 #[derive(Clone, Debug)]
-pub struct Food {
-    ingredients: HashSet<String>,
-    allergens: HashSet<String>,
+pub struct Food<'a> {
+    ingredients: HashSet<&'a str>,
+    allergens: HashSet<&'a str>,
 }
 
-impl Food {
-    pub fn new(input: &str) -> Self {
-        let clone = String::from(input);
-        let (left, right) = split_once(&clone[0..input.len()-1], "(contains ");
-
-        Self{
-            ingredients: left.split(' ').filter(|s| !s.is_empty()).map(|s| String::from(s)).collect(),
-            allergens: right.split(", ").map(|s| String::from(s)).collect(),
+impl<'a> Food<'a> {
+    pub fn new(input: &'a str) -> Self {
+        let (left, right) = split_once(&input[0..input.len()-1], "(contains ");
+        Self {
+            ingredients: left.split(' ').filter(|s| !s.is_empty()).collect(),
+            allergens: right.split(", ").collect(),
         }
     }
 }
 
-pub struct FoodSet {
-    foods: Vec<Food>,
+pub struct FoodSet<'a> {
+    foods: Vec<Food<'a>>,
 }
 
-impl FoodSet {
-    pub fn parse_list<T: BufRead>(reader: &mut T) -> Self {
-        let foods: Vec<Food> = reader.lines().filter_map(|l| l.ok()).map(|line| Food::new(&line)).collect();
+impl<'a> FoodSet<'a> {
+    pub fn parse_list(input: &'a str) -> Self {
+        let foods: Vec<Food> = input.lines().map(|line| Food::new(line)).collect();
         println!("Parsed foods:");
         foods.iter().for_each(|f| println!("  {:?}", f));
         FoodSet{
@@ -44,9 +42,9 @@ impl FoodSet {
         }
     }
 
-    pub fn map_allergens(&self) -> HashMap<String, String> {
+    pub fn map_allergens(&self) -> HashMap<&'a str, &'a str> {
 
-        let mut all_allergens: HashSet<_> = self.foods.iter().flat_map(|f| f.allergens.iter()).collect();
+        let mut all_allergens: HashSet<_> = self.foods.iter().flat_map(|f| f.allergens.iter()).map(|a| *a).collect();
         let mut foods = self.foods.clone();
         let mut known_allergens = HashMap::new();
         while !all_allergens.is_empty() {
@@ -83,33 +81,33 @@ impl FoodSet {
 
     pub fn dangerous_list(&self) -> String {
         let known_allergens = self.map_allergens();
-        let rev_map:HashMap<String, String>= known_allergens.iter().map(|(k,v)| (v.clone(),k.clone())).collect();
-        let all_allergens : HashSet<String> = self.foods.iter().flat_map(|f| f.allergens.iter()).map(|s| s.clone()).collect();
-        let mut sorted_allergens: Vec<String> = all_allergens.iter().map(|s| s.clone()).collect();
+        let rev_map:HashMap<_, _>= known_allergens.iter().map(|(k,v)| (v,k)).collect();
+        let all_allergens : HashSet<_> = self.foods.iter().flat_map(|f| f.allergens.iter()).map(|s| *s).collect();
+        let mut sorted_allergens: Vec<_> = all_allergens.iter().map(|s| *s).collect();
         sorted_allergens.sort();
-        let res = sorted_allergens.iter().fold(String::from(""), |acc, all| format!("{},{}", acc, rev_map[all]));
+        let res = sorted_allergens.iter().fold("".to_string(), |acc, all| format!("{},{}", acc, rev_map[all]));
         String::from(&res[1..])
     }
 }
 
-fn match_one(foods: &Vec<Food>, all_allergens: &HashSet<&String>) -> Option<(String, String)> {
+fn match_one<'a>(foods: &Vec<Food<'a>>, all_allergens: &HashSet<&'a str>) -> Option<(&'a str, &'a str)> {
     for a in all_allergens {
         let foods_with_a: Vec<_> = foods.iter().filter(|f| f.allergens.contains(*a)).collect();
         println!("Examining {}, amongst {:?}", a, foods_with_a);
         let mut possible_ingredients: HashSet<_> = foods_with_a[0].ingredients.clone();
         for i in 1..foods_with_a.len() {
-            possible_ingredients = possible_ingredients.intersection(&foods_with_a[i].ingredients).map(|f| f.clone()).collect();
+            possible_ingredients = possible_ingredients.intersection(&foods_with_a[i].ingredients).map(|f| *f).collect();
         }
 
         if possible_ingredients.len() == 1 {
-            return Some((String::from(*a), String::from(possible_ingredients.iter().nth(0).unwrap())));
+            return Some((*a, possible_ingredients.iter().nth(0).unwrap()));
         }
     }
 
     None
 }
 
-fn clone_without_ingredient_allergen(foods: &Vec<Food>, ingredient: &str, allergen: &str) -> Vec<Food> {
+fn clone_without_ingredient_allergen<'a>(foods: &Vec<Food<'a>>, ingredient: &str, allergen: &str) -> Vec<Food<'a>> {
     let mut res = Vec::new();
     for f in foods {
         let mut ingredients = f.ingredients.clone();
@@ -134,15 +132,14 @@ fn split_once<'a>(in_string: &'a str, split_on: &str) -> (&'a str, &'a str) {
 
 #[cfg(test)]
 mod tests_part1 {
-    use std::io::Cursor;
-use super::*;
+    use super::*;
 
     #[test]
     fn test() {
-        let food_set = FoodSet::parse_list(&mut Cursor::new("mxmxvkd kfcds sqjhc nhms (contains dairy, fish)
+        let food_set = FoodSet::parse_list("mxmxvkd kfcds sqjhc nhms (contains dairy, fish)
 trh fvjkl sbzzf mxmxvkd (contains dairy)
 sqjhc fvjkl (contains soy)
-sqjhc mxmxvkd sbzzf (contains fish)"));
+sqjhc mxmxvkd sbzzf (contains fish)");
         assert_eq!(5, food_set.count_of_non_allergens());
         assert_eq!("mxmxvkd,sqjhc,fvjkl", food_set.dangerous_list());
     }
