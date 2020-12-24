@@ -1,4 +1,5 @@
-use std::collections::LinkedList;
+use std::cmp::min;
+use std::collections::HashMap;
 use std::ops::RangeInclusive;
 
 fn main() {
@@ -10,30 +11,51 @@ fn main() {
 }
 
 pub struct GameState {
-    cups: LinkedList<usize>,
-    current_index: usize,
+    cups: HashMap<usize, usize>,
+    current_cup: usize,
     move_number: usize,
 }
 
 impl GameState {
     pub fn new(input: &str) -> Self {
-        let cups: LinkedList<_> = input.chars().map(|c| String::from(c).parse::<usize>().unwrap()).collect();
+        let mut cups = HashMap::new();
+        let first = input[0..1].parse::<usize>().unwrap();
+        let mut cur = first;
+        for c in input[1..].chars() {
+            let cc = String::from(c).parse::<usize>().unwrap();
+            cups.insert(cur, cc);
+            cur = cc;
+        }
+        cups.insert(cur, first);
+
         Self {
             cups: cups,
-            current_index: 0,
+            current_cup: first,
             move_number: 1,
         }
     }
 
     pub fn new_part2(input: &str) -> Self {
-        let mut cups: LinkedList<_> = input.chars().map(|c| String::from(c).parse::<usize>().unwrap()).collect();
-        for i in cups.len()+1..1_000_001 {
-            cups.push_back(i);
+        let mut cups = HashMap::new();
+        let first = input[0..1].parse::<usize>().unwrap();
+        let mut cur = first;
+        for c in input[1..].chars() {
+            let cc = String::from(c).parse::<usize>().unwrap();
+            println!("parsing {}->{}", cur, cc);
+            cups.insert(cur, cc);
+            cur = cc;
         }
+
+        for cc in cups.len()+2..1_000_001 {
+            cups.insert(cur, cc);
+            cur = cc;
+        }
+        println!("linking {}->{}", cur, first);
+        cups.insert(cur, first);
 
         Self {
             cups: cups,
-            current_index: 0,
+            current_cup: first,
             move_number: 1,
         }
     }
@@ -42,92 +64,62 @@ impl GameState {
         // println!("-- move {} --", self.move_number);
         // self.print_state();
 
-        let orig_len = self.cups.len();
-        let current = self.current();
-        let mut pick_up = remove_after(&mut self.cups, self.current_index, 3);
-        // println!("pick up {:?}", pick_up);
-        let mut destination = decrement_wrap(current, &RangeInclusive::new(1, orig_len));
-        while pick_up.contains(&destination) {
-            destination = decrement_wrap(destination, &RangeInclusive::new(1, orig_len)); 
+        let mut pickup_cups = Vec::new();
+        let mut cup = self.cups[&self.current_cup];
+
+        // print!("pick up: ");
+        for _ in 0..3 {
+            // print!("{} ", cup);
+            pickup_cups.push(cup);
+            cup = self.cups[&cup];
+       }
+    //    println!("");
+
+        let mut destination = decrement_wrap(self.current_cup, &RangeInclusive::new(1, self.cups.len()));
+        while pickup_cups.contains(&destination) {
+            destination = decrement_wrap(destination, &RangeInclusive::new(1, self.cups.len())); 
         }
 
-        let dest_index = increment_wrap(self.cups.iter().position(|x| x == &destination).unwrap(), &RangeInclusive::new(0, self.cups.len() - 1));
-        // println!("Destination is {}, before index {}", destination, dest_index);
+        // println!("destination: {}", destination);
 
-        let mut temp = self.cups.split_off(dest_index);
-        self.cups.append(&mut pick_up);
-        self.cups.append(&mut temp);
+        self.cups.insert(self.current_cup, self.cups[pickup_cups.last().unwrap()]);
+        self.cups.insert(*pickup_cups.last().unwrap(), self.cups[&destination]);
+        self.cups.insert(destination, pickup_cups[0]);
 
-        let curr_index_after = self.cups.iter().position(|x| x == &current).unwrap();
-
-        self.current_index = increment_wrap(curr_index_after, &RangeInclusive::new(0, self.cups.len() - 1));
+        self.current_cup = self.cups[&self.current_cup];
         self.move_number += 1;
     }
 
     fn print_state(&self) {
         print!("cups: ");
-        let mut i = 0;
-        for c in &self.cups {
-            if i == self.current_index {
-                print!("({})", c);
-            } else {
-                print!(" {} ", c);
-            }
-            i += 1;
+        let mut cup = self.current_cup;
+        print!("({})", cup);
+        cup = self.cups[&cup];
+        for _ in 1..min(self.cups.len() -1, 15) {
+            print!(" {} ", cup);
+            cup = self.cups[&cup];
         }
         println!("");
     }
 
     pub fn current(&self) -> usize {
-        *self.cups.iter().nth(self.current_index).unwrap()
+        self.current_cup
     }
 
     pub fn order_after_one(&self) -> String {
         let mut res = String::from("");
-        let mut after_one = false;
-        for c in &self.cups {
-            if after_one {
-                res = format!("{}{}", res, c);
-            }
-            if c == &1 {
-                after_one = true;
-            }
-        }
-        for c in &self.cups {
-            if c == &1 {
-                break;
-            }
-            res = format!("{}{}", res, c);
+        let mut cur = self.cups[&1];
+        for _ in 0..self.cups.len() - 1
+        {
+            res = format!("{}{}", res, cur);
+            cur = self.cups[&cur];
         }
         res
     }
 
     pub fn products(&self) -> usize {
-        let mut count = 0;
-        let mut after_one = false;
-        let mut res = 1;
-        for c in &self.cups {
-            if after_one && count < 2 {
-                res *= c;
-                count += 1;
-            }
-            if c == &1 {
-                after_one = true;
-            }
-
-            if count == 2 {
-                return res;
-            }
-        }
-
-        for c in &self.cups {
-            res *= c;
-            count += 1;
-            if count == 2 {
-                break;
-            }
-        }
-        res
+        let c = self.cups[&1];
+        c * self.cups[&c]
     }
 }
 
@@ -139,27 +131,6 @@ fn decrement_wrap(val: usize, bounds: &RangeInclusive<usize>) -> usize {
     }
 }
 
-fn increment_wrap(val: usize, bounds: &RangeInclusive<usize>) -> usize {
-    if &val == bounds.end() {
-        *bounds.start()
-    } else {
-        val + 1
-    }
-}
-
-fn remove_after<T: Copy>(input: &mut LinkedList<T>, index: usize, count: usize) -> LinkedList<T> {
-    let mut removed = input.split_off(index + 1);
-    if count < removed.len() {
-        let mut temp = removed.split_off(count);
-        input.append(&mut temp);
-    } else {
-        let mut t = input.split_off(count - removed.len());
-        removed.append(input);
-        input.append(&mut t);
-    }
-
-    removed
-}
 
 #[cfg(test)]
 mod tests_part1 {
@@ -212,25 +183,6 @@ mod tests_part1 {
 
         assert_eq!("92658374", &state.order_after_one())
     }
-
-    fn assert_all<I1, I2, T>(expected: &mut I1, actual: &mut I2)
-        where I1: Iterator<Item=T>,
-              I2: Iterator<Item=T>,
-              T: std::fmt::Debug+PartialEq  {
-        loop {
-            if let Some(e) = expected.next() {
-                match actual.next() {
-                    Some(a) => assert_eq!(e, a),
-                    None => assert!(false, format!("expected: '{:?}', actual end", e)),
-                }
-            } else {
-                match actual.next() {
-                    Some (a) => assert!(false, format!("expected end, actual: '{:?}'", a)),
-                    None => return,
-                }
-            }
-        }
-    }
 }
 
 #[cfg(test)]
@@ -240,7 +192,8 @@ mod tests_part2 {
     #[test]
     fn test() {
         let mut state = GameState::new_part2("389125467");
-        for _ in 0..100_000 {
+        state.print_state();
+        for _ in 0..10_000_000 {
             state.play_round();
         }
 
