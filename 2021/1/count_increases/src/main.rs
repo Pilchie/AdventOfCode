@@ -3,19 +3,16 @@ fn main() -> Result<(), std::io::Error> {
     let input = std::fs::read_to_string(&args[1])?;
 
     let mut count = 0;
-    let mut last = 0;
-    let mut first = true;
-    for l in &mut input.lines() {
-        if first {
-            first = false
-        } else {
-            if l.parse::<i32>().unwrap() > last {
-                count = count + 1
-            }
-        }
-        last = l.parse().unwrap()
-    }
 
+    let lines: Vec<_> = input.lines().map(|x| x.parse::<i32>().unwrap()).collect();
+    let mut last = lines[0] + lines[1] + lines[2];
+    for i in 3..lines.len() {
+        let cur = lines[i] + lines[i-1] + lines[i-2];
+        if cur > last {
+            count += 1;
+        }
+        last = cur
+    }
 
     println!("There were {} increases", count);
     Ok(())
