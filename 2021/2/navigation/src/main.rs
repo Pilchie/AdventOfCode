@@ -22,16 +22,19 @@ fn main() -> Result<(), Error> {
     let args: Vec<_> = std::env::args().collect();
     let reader = std::io::BufReader::new(std::fs::File::open(&args[1])?);
 
+    let mut aim = 0;
     let mut depth = 0;
     let mut position = 0;
     for l in reader.lines() {
         let line = l?;
         if line.starts_with("forward ") {
-            position += rest(&line, "forward ")?;
+            let x = rest(&line, "forward ")?;
+            position += x;
+            depth += aim * x;
         } else if line.starts_with("down ") {
-            depth += rest(&line, "down ")?;
+            aim += rest(&line, "down ")?;
         } else if line.starts_with("up ") {
-            depth -= rest(&line, "up ")?;
+            aim -= rest(&line, "up ")?;
         } else {
             panic!("Unexpected directive");
         }
