@@ -27,22 +27,44 @@ fn main() -> Result<(), Error> {
         lines.push(l?);
     }
 
-    let (called, mut boards) = parse(&lines);
-
+    let (called, mut remaining) = parse(&lines);
+    let mut winners = Vec::new();
     for n in called {
-        for b in &mut boards {
-            b.mark(n);
-        }
-
-        for b in &boards {
-            if b.wins() {
-                println!("BINGO: score {}", b.score() * n);
-                break;
-            }
+        remaining = apply(n, &remaining, &mut winners);
+        if remaining.len() == 0 {
+            break;
         }
     }
 
+    let (winning_number, lastset) = &winners[winners.len() - 1];
+    let last = &lastset[lastset.len() - 1];
+
+    println!("Last Bingo score is {}", winning_number * last.score());
+
     Ok(())
+}
+
+fn apply(n: i32, boards: &[Board], winners: &mut Vec<(i32, Vec<Board>)>) -> Vec<Board> {
+    let mut winners_this_round = Vec::new();
+    let mut remaining = Vec::new();
+
+    for b in boards {
+        let mut bc = b.clone();
+        bc.mark(n);
+
+        match bc.wins() {
+            true => winners_this_round.push(bc),
+            false => remaining.push(bc),
+        };
+    }
+
+    println!("Found {} winners for {}, {} remaining", winners_this_round.len(), n, remaining.len());
+
+    if winners_this_round.len() > 0 {
+        winners.push((n, winners_this_round));
+    }
+
+    remaining
 }
 
 fn parse(input: &[String]) -> (Vec<i32>, Vec<Board>) {
@@ -56,6 +78,7 @@ fn parse(input: &[String]) -> (Vec<i32>, Vec<Board>) {
     (numbers, boards)
 }
 
+#[derive(Clone)]
 struct Board {
     rows: Vec<Vec<(i32, bool)>>
 }
@@ -121,5 +144,19 @@ impl Board {
                 }
             }
         }
+    }
+
+    fn _print(self: &Self) {
+        for y in 0..self.rows.len() {
+            for x in 0..self.rows[y].len() {
+                let found = match self.rows[y][x].1 {
+                    true => '*',
+                    false => ' ',
+                };
+                print!("{}{}", self.rows[y][x].0, found);
+            }
+            println!();
+        }
+        println!();
     }
 }
