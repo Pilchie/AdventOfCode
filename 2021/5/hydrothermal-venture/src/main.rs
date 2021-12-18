@@ -27,18 +27,17 @@ fn main() -> Result<(), Error> {
     for l in reader.lines() {
         let line = l?;
         let v = Vector::parse(&line).ok_or(Error::Custom("can't parse vector".to_string()))?;
-        if !v.is_diagonal() {
-            vents.push(v);
-        }
+        vents.push(v);
     }
 
     let mut count_with_two = 0;
-    for x in 0..999 {
-        for y in 0..999 {
-            let p = Point{x,y,};
+    for y in 0..1000 {
+        for x in 0..1000 {
+            let p = Point { x, y };
             let mut count_this_point = 0;
             for v in &vents {
                 if v.intersects(&p) {
+                    //println!("{:?} intersects {:?}", p, v);
                     count_this_point += 1;
                 }
 
@@ -47,7 +46,9 @@ fn main() -> Result<(), Error> {
                     break;
                 }
             }
+            print!("{}", count_this_point);
         }
+        println!();
     }
 
     println!("There are {} points with two or more vents", count_with_two);
@@ -82,13 +83,51 @@ impl Vector {
     }
 
     fn intersects(self: &Self, point: &Point) -> bool {
-        if point.x == self.start.x && point.x == self.end.x {
-            if point.y >= self.start.y && point.y <= self.end.y || point.y <= self.start.y && point.y >= self.end.y {
-                return true;
+        if self.start.x == self.end.x {
+            if self.start.x == point.x {
+                if point.y >= self.start.y && point.y <= self.end.y
+                    || point.y <= self.start.y && point.y >= self.end.y
+                {
+                    return true;
+                }
             }
-        } else if point.y == self.start.y && point.y == self.end.y {
-            if point.x >= self.start.x && point.x <= self.end.x || point.x <= self.start.x && point.x >= self.end.x {
-                return true;
+        } else if self.start.y == self.end.y {
+            if self.start.y == point.y {
+                if point.x >= self.start.x && point.x <= self.end.x
+                    || point.x <= self.start.x && point.x >= self.end.x
+                {
+                    return true;
+                }
+            }
+        } else if self.start.x < self.end.x {
+            let length = self.end.x - self.start.x + 1;
+            if self.start.y < self.end.y {
+                for i in 0..length {
+                    if point.x == self.start.x + i && point.y == self.start.y + i {
+                        return true;
+                    }
+                }
+            } else {
+                for i in 0..length {
+                    if point.x == self.start.x + i && point.y == self.start.y - i {
+                        return true;
+                    }
+                }
+            }
+        } else if self.end.x < self.start.x {
+            let length = self.start.x - self.end.x + 1;
+            if self.start.y < self.end.y {
+                for i in 0..length {
+                    if point.x == self.start.x - i && point.y == self.start.y + i {
+                        return true;
+                    }
+                }
+            } else {
+                for i in 0..length {
+                    if point.x == self.start.x - i && point.y == self.start.y - i {
+                        return true;
+                    }
+                }
             }
         }
 
