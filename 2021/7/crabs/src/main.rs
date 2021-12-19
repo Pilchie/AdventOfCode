@@ -33,7 +33,9 @@ fn main() -> Result<(), Error> {
     for i in min..max+1 {
         let mut sum = 0;
         for c in &crabs {
-            sum += (c - i).abs()
+            let dist = (c - i).abs();
+            let cost = dist * (dist + 1) / 2;
+            sum += cost;
         }
 
         if sum < min_fuel {
