@@ -24,24 +24,30 @@ fn main() -> Result<(), Error> {
     let reader = std::io::BufReader::new(std::fs::File::open(&args[1])?);
 
     let line = reader.lines().last().ok_or(Error::Custom("couldn't parse!".to_string()))??;
-    let mut fish: Vec<_> = line.split(",").filter_map(|s| s.parse::<i32>().ok()).collect();
+    let initial: Vec<_> = line.split(",").filter_map(|s| s.parse::<usize>().ok()).collect();
 
-    println!("Initial state: {:?}", fish);
-    for _ in 0..80 {
-        let mut new = Vec::new();
-        for f in &mut fish {
-            if *f == 0 {
-                new.push(8);
-                *f = 6;
-            } else {
-                *f = *f - 1;
-            }
-        }
+    let mut fish : Vec<i64> = vec!(0, 0, 0, 0, 0, 0, 0, 0, 0);
 
-        fish.append(&mut new);
-        //println!("After {} days: {:?}", d+1, fish);
+    for f in initial {
+        fish[f] += 1;
     }
 
-    println!("There are now {} lanternfish", fish.len());
+    println!("Initial state: {:?}", fish);
+    for d in 0..256 {
+        let mut new = Vec::new();
+        for i in 1..9 {
+            new.push(fish[i]);
+        }
+
+        new[6] += fish[0];
+        new.push(fish[0]);
+
+        fish = new;
+
+        let count = fish.iter().fold(0, |f, a| f+a);
+        println!("After {} days: {}", d+1, count);
+    }
+
+    //println!("There are now {} lanternfish", );
     Ok(())
 }
