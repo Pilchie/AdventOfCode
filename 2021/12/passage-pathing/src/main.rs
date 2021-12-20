@@ -55,7 +55,19 @@ impl<'a> CaveMap<'a> {
 
     fn count_rec(self: &Self, cave: &Cave<'a>, so_far: Vec<&'a str>) -> u64 {
         if cave.is_small() && so_far.contains(&cave.id) {
-            return 0;
+            if cave.id == "start" {
+                return 0;
+            }
+            
+            let mut sorted = so_far.clone();
+            sorted.sort();
+            let mut last = "";
+            for p in sorted {
+                if p.to_lowercase() == p && p == last {
+                    return 0;
+                }
+                last = p;
+            }
         }
 
         let mut path = so_far.clone();
