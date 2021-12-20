@@ -23,12 +23,17 @@ fn main() -> Result<(), Error> {
     let input = std::fs::read_to_string(&args[1])?;
 
     let mut map = Octopuses::parse(&input);
-    let mut flashes = 0;
-    for _ in 0..100 {
-        flashes += map.step();
+    let mut step = 0;
+    loop {
+        step += 1;
+        map.step();
+
+        if map.all_flashed() {
+            break;
+        }
     }
 
-    println!("There were {} flashes", flashes);
+    println!("There first synchronized flash was at step {}", step);
 
     Ok(())
 }
@@ -138,6 +143,17 @@ impl Octopuses {
         }
         
         res
+    }
+
+    fn all_flashed(self: &Self) -> bool {
+        for row in &self.points {
+            for p in row {
+                if *p != 0 {
+                    return false;
+                }
+            }
+        }
+        true
     }
 }
 
