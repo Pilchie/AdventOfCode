@@ -93,7 +93,7 @@ impl HeightMap {
         true
     }
 
-    fn risk_level(self: &Self, x: usize, y: usize) -> u32 {
+    fn _risk_level(self: &Self, x: usize, y: usize) -> u32 {
         (self.points[y][x] + 1).into()
     }
 
