@@ -29,10 +29,17 @@ fn main() -> Result<(), Error> {
     map.insert('}', ('{', 1197));
     map.insert('>', ('<', 25137));
 
-    let mut score = 0;
+    let mut cmap = HashMap::new();
+    cmap.insert('(', 1);
+    cmap.insert('[', 2);
+    cmap.insert('{', 3);
+    cmap.insert('<', 4);
+
+    let mut line_scores = Vec::new();
     for l in reader.lines() {
         let line = l?;
 
+        let mut invalid = false;
         let mut stack = Vec::new();
         for c in line.chars() {
             let s = match c {
@@ -48,11 +55,23 @@ fn main() -> Result<(), Error> {
             };
 
             if s > 0 {
-                score += s;
+                invalid = true;
                 break;
             }
         }
+
+        let mut score = 0u128;
+        if !invalid {
+            while stack.len() > 0 {
+                let s = stack.pop().unwrap();
+                score = score * 5 + cmap.get(&s).unwrap();
+            }
+            line_scores.push(score);
+        }
     }
+
+    line_scores.sort();
+    let score = line_scores[line_scores.len() / 2];
 
     println!("The syntax score was {}", score);
 
