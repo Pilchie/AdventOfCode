@@ -4,8 +4,6 @@ fn main() -> Result<(), std::io::Error> {
     let args: Vec<_> = std::env::args().collect();
     let input = std::fs::read_to_string(&args[1])?;
 
-    let print = false;
-
     let template: Vec<char> = input.lines().next().unwrap().chars().collect();
 
     let mut rules = HashMap::new();
@@ -19,23 +17,27 @@ fn main() -> Result<(), std::io::Error> {
         };
     }
 
-    let mut chain = template;
-    for s in 0..10 {
-        chain = step(&chain, &rules);
-
-        if print {
-            print_chain(s, &chain);
-        }
+    let mut pairs = HashMap::new();
+    for i in 0..template.len() - 1 {
+        (*pairs.entry((template[i], template[i+1])).or_insert(0)) += 1;
     }
+
+    for _ in 0..40 {
+        pairs = step(&pairs, &rules);
+    }
+
 
     let mut histogram = HashMap::new();
-    for c in chain {
-        (*histogram.entry(c).or_insert(0)) += 1;
+    for ((c1, c2), count) in pairs {
+        (*histogram.entry(c1).or_insert(0)) += count;
+        (*histogram.entry(c2).or_insert(0)) += count;
     }
+    (*histogram.entry(template[template.len() -1]).or_insert(0)) += 1;
+
 
     let mut maxcount = 0;
     let mut maxchar = 'a';
-    let mut mincount = i32::MAX;
+    let mut mincount = u64::MAX;
     let mut minchar = 'a';
 
     for (k, v) in histogram {
@@ -51,39 +53,23 @@ fn main() -> Result<(), std::io::Error> {
     println!(
         "Min char is {} with {}, max is {} with {}.  Difference is {}",
         minchar,
-        mincount,
+        mincount/2,
         maxchar,
-        maxcount,
-        maxcount - mincount,
+        maxcount / 2,
+        (maxcount - mincount) / 2,
     );
 
     Ok(())
 }
 
-fn step(input: &Vec<char>, rules: &HashMap<(char, char), char>) -> Vec<char> {
-    let mut res = Vec::new();
+fn step(input: &HashMap<(char, char), u64>, rules: &HashMap<(char, char), char>) -> HashMap<(char, char), u64> {
+    let mut res = HashMap::new();
 
-    for i in 0..input.len() - 1 {
-        let l = input[i];
-        let r = input[i + 1];
-
-        let c = match rules.get(&(l, r)) {
-            Some(c) => c,
-            None => panic!("No rule for {}{}", l, r),
-        };
-
-        res.push(l);
-        res.push(*c);
+    for (k,v) in input {
+        let x = rules.get(k).unwrap();
+        (*res.entry((k.0, *x)).or_insert(0)) += v;
+        (*res.entry((*x, k.1)).or_insert(0)) += v;
     }
 
-    res.push(*input.last().unwrap());
     res
-}
-
-fn print_chain(s: usize, chain: &Vec<char>) {
-    print!("After step {}: ", s + 1);
-    for c in chain {
-        print!("{}", c);
-    }
-    println!();
 }
