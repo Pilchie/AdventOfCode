@@ -30,10 +30,10 @@ enum Term {
 }
 
 impl Term {
-    fn print(&self) {
+    fn _print(&self) {
         match self {
             Term::Value(v) => print!("{}", v),
-            Term::Pair(p) => p.print(),
+            Term::Pair(p) => p._print(),
         }
     }
 
@@ -316,11 +316,11 @@ impl Pair {
         vec.push(Element::Close);
     }
     
-    fn print(&self) {
+    fn _print(&self) {
         print!("[");
-        self.lhs.print();
+        self.lhs._print();
         print!(",");
-        self.rhs.print();
+        self.rhs._print();
         print!("]");
     }
 
