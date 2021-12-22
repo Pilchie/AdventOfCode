@@ -2,15 +2,25 @@ fn main() -> Result<(), std::io::Error> {
     let args: Vec<_> = std::env::args().collect();
     let input = std::fs::read_to_string(&args[1])?;
 
-    let mut value = Pair::parse_str(input.lines().nth(0).unwrap());
-    for line in input.lines().skip(1) {
-        value = Pair::add(&value, &Pair::parse_str(line));
+    let mut max = 0;
+
+    for (i1, line1) in input.lines().enumerate() {
+        for (i2, line2) in input.lines().enumerate() {
+            if i1 != i2 {
+                let p1 = Pair::parse_str(line1);
+                let p2 = Pair::parse_str(line2);
+                let sum = Pair::add(&p1, &p2);
+                let magnitude = sum.magnitude();
+                if magnitude > max {
+                    max = magnitude;
+                }
+            }
+        }
     }
 
-    value.print();
     println!();
 
-    println!("The magnitude is: {}", value.magnitude());
+    println!("The magnitude is: {}", max);
     Ok(())
 }
 
