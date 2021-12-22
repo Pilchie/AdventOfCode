@@ -12,27 +12,21 @@ fn main() -> Result<(), std::io::Error> {
 
     println!("Target is x={:?}, u={:?}", xrange, yrange);
 
-    let mut overall_max = 0;
-    for x_vel in 0..1000 {
-        for y_vel in 0..1000 {
+    let mut count = 0;
+    for x_vel in -1000..1000 {
+        for y_vel in -1000..1000 {
             //print!("Trying {},{} -> ", x_vel, y_vel);
             let mut probe = Probe::new(x_vel, y_vel);
-            let mut max = 0;
             for _ in 1.. {
                 probe = probe.step();
-                if probe.y_pos > max {
-                    max = probe.y_pos;
-                }
 
                 if probe.x_pos >= xrange.start
                     && probe.x_pos <= xrange.end
                     && probe.y_pos >= yrange.start
                     && probe.y_pos <= yrange.end
                 {
-                    if max > overall_max {
-                        overall_max = max;
-                    }
                     //println!("Target area reached!");
+                    count += 1;
                     break;
                 }
         
@@ -45,7 +39,7 @@ fn main() -> Result<(), std::io::Error> {
         }
     }
 
-    println!("Overall max value is {}", overall_max);
+    println!("Overall number of combos is {}", count);
 
     Ok(())
 }
