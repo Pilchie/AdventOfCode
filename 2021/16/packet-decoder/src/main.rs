@@ -15,104 +15,103 @@ fn main() -> Result<(), std::io::Error> {
                 bits.push(0u8);
                 bits.push(0u8);
                 bits.push(0u8);
-            },
+            }
             b'1' => {
                 bits.push(0u8);
                 bits.push(0u8);
                 bits.push(0u8);
                 bits.push(1u8);
-            },
+            }
             b'2' => {
                 bits.push(0u8);
                 bits.push(0u8);
                 bits.push(1u8);
                 bits.push(0u8);
-            },
+            }
             b'3' => {
                 bits.push(0u8);
                 bits.push(0u8);
                 bits.push(1u8);
                 bits.push(1u8);
-            },
+            }
             b'4' => {
                 bits.push(0u8);
                 bits.push(1u8);
                 bits.push(0u8);
                 bits.push(0u8);
-            },
+            }
             b'5' => {
                 bits.push(0u8);
                 bits.push(1u8);
                 bits.push(0u8);
                 bits.push(1u8);
-            },
+            }
             b'6' => {
                 bits.push(0u8);
                 bits.push(1u8);
                 bits.push(1u8);
                 bits.push(0u8);
-            },
+            }
             b'7' => {
                 bits.push(0u8);
                 bits.push(1u8);
                 bits.push(1u8);
                 bits.push(1u8);
-            },
+            }
             b'8' => {
                 bits.push(1u8);
                 bits.push(0u8);
                 bits.push(0u8);
                 bits.push(0u8);
-            },
+            }
             b'9' => {
                 bits.push(1u8);
                 bits.push(0u8);
                 bits.push(0u8);
                 bits.push(1u8);
-            },
+            }
             b'A' => {
                 bits.push(1u8);
                 bits.push(0u8);
                 bits.push(1u8);
                 bits.push(0u8);
-            },
+            }
             b'B' => {
                 bits.push(1u8);
                 bits.push(0u8);
                 bits.push(1u8);
                 bits.push(1u8);
-            },
+            }
             b'C' => {
                 bits.push(1u8);
                 bits.push(1u8);
                 bits.push(0u8);
                 bits.push(0u8);
-            },
+            }
             b'D' => {
                 bits.push(1u8);
                 bits.push(1u8);
                 bits.push(0u8);
                 bits.push(1u8);
-            },
+            }
             b'E' => {
                 bits.push(1u8);
                 bits.push(1u8);
                 bits.push(1u8);
                 bits.push(0u8);
-            },
+            }
             b'F' => {
                 bits.push(1u8);
                 bits.push(1u8);
                 bits.push(1u8);
                 bits.push(1u8);
-            },
+            }
             _ => panic!("Unexpected byte: '{}'", b),
         };
     }
 
     let mut index = 0usize;
-    let mut total = 0;
-    index = parse_packet(index, &bits, &mut total);
+    let res = parse_packet(&mut index, &bits);
 
     for i in index..bits.len() {
         if bits[i] != 0 {
@@ -120,71 +119,100 @@ fn main() -> Result<(), std::io::Error> {
         }
     }
 
-    println!("The total is: {}", total);
+    println!("The result is: {}", res);
 
     Ok(())
 }
 
-fn parse_packet(index: usize, bits: &Vec<u8>, total: &mut i32) -> usize {
-    println!("parsing packet at {}", index);
+fn parse_packet(i: &mut usize, bits: &Vec<u8>) -> i64 {
+    print!("parsing packet at {} ->", i);
 
-    let mut i = index;
-    let packet_version = parse(&mut i, bits, 3);
-    *total += packet_version;
+    let _packet_version = parse(i, bits, 3);
+    let packet_type = parse(i, bits, 3);
 
-    let packet_type = parse(&mut i, bits, 3);
+    let res = match packet_type {
+        4 => parse_literal_body(i, &bits),
+        _ => parse_operator_body(i, &bits, packet_type),
+    };
 
-    match packet_type {
-        4 => parse_literal_body(&mut i, &bits),
-        _ => parse_operator_body(&mut i, &bits, total),
-    }
+    println!("{}", res);
 
-    i
+    res
 }
 
-fn parse_literal_body(i: &mut usize, bits: &Vec<u8>) {
-    println!("parsing literal at {}", i);
+fn parse_literal_body(i: &mut usize, bits: &Vec<u8>) -> i64 {
+    let mut val = 0;
     while bits[*i] == 1 {
-        *i += 5;
+        *i += 1;
+        let chunk = parse(i, bits, 4);
+        val = (val << 4) + chunk;
     }
 
-    *i += 5;
+    *i += 1;
+    let chunk = parse(i, bits, 4);
+    val = (val << 4) + chunk;
+
+    val
 }
 
-fn parse_operator_body(i: &mut usize, bits: &Vec<u8>, total: &mut i32) {
-    println!("parsing operator body at {}", i);
-
+fn parse_operator_body(i: &mut usize, bits: &Vec<u8>, packet_type: i64) -> i64 {
     let length_type = bits[*i];
     *i += 1;
 
-    match length_type {
-        0 => parse_packets_length(i, bits, total),
-        1 => parse_packets_count(i, bits, total),
+    let vals = match length_type {
+        0 => parse_packets_length(i, bits),
+        1 => parse_packets_count(i, bits),
         _ => panic!("Unexpected length bit! {}", length_type),
     };
+
+    match packet_type {
+        0 => vals.iter().fold(0, |a, v| a + v),
+        1 => vals.iter().fold(1, |a, v| a * v),
+        2 => *vals.iter().min().unwrap(),
+        3 => *vals.iter().max().unwrap(),
+        5 => match vals[0] > vals[1] {
+            true => 1,
+            false => 0,
+        },
+        6 => match vals[0] < vals[1] {
+            true => 1,
+            false => 0,
+        },
+        7 => match vals[0] == vals[1] {
+            true => 1,
+            false => 0,
+        },
+        _ => panic!("Unexpected packet type {}", packet_type),
+    }
 }
 
-fn parse_packets_length(i: &mut usize, bits: &Vec<u8>, total: &mut i32) {
+fn parse_packets_length(i: &mut usize, bits: &Vec<u8>) -> Vec<i64> {
     let length = parse(i, bits, 15);
 
     let start = *i;
+    let mut res = Vec::new();
     while *i < start + length as usize {
-        *i = parse_packet(*i, bits, total);
+        res.push(parse_packet(i, bits));
     }
+
+    res
 }
 
-fn parse_packets_count(i: &mut usize, bits: &Vec<u8>, total: &mut i32) {
+fn parse_packets_count(i: &mut usize, bits: &Vec<u8>) -> Vec<i64> {
     let count = parse(i, bits, 11);
 
+    let mut res = Vec::new();
     for _ in 0..count {
-        *i = parse_packet(*i, bits, total);
+        res.push(parse_packet(i, bits));
     }
+
+    res
 }
 
-fn parse(i: &mut usize, bits: &Vec<u8>, count: usize) -> i32 {
-    let mut value = bits[*i] as i32;
+fn parse(i: &mut usize, bits: &Vec<u8>, count: usize) -> i64 {
+    let mut value = bits[*i] as i64;
     for b in 1..count {
-        value = (value << 1) + bits[*i + b] as i32;
+        value = (value << 1) + bits[*i + b] as i64;
     }
 
     *i += count;
