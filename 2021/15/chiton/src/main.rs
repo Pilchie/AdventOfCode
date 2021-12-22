@@ -6,14 +6,32 @@ fn main() -> Result<(), std::io::Error> {
     let input = std::fs::read_to_string(&args[1])?;
 
     let mut risks = HashMap::new();
-    for (y, line) in input.lines().enumerate() {
-        for (x, risk) in line.bytes().enumerate() {
-            risks.insert(Point { x, y }, (risk - b'0') as i32);
+    let size = input.lines().count();
+    for y_i in 0..5 {
+        for x_i in 0..5 {
+            for (y, line) in input.lines().enumerate() {
+                for (x, risk) in line.bytes().enumerate() {
+                    let mut r = (risk - b'0') as i32 + y_i + x_i;
+                    if r > 9 {
+                        r -= 9;
+                    }
+                    let p = Point { x: x_i as usize * size + x, y: y_i as usize * size + y };
+                    risks.insert(p, r);
+                }
+            }
         }
     }
 
     let max_x = max_x(&risks);
     let max_y = max_y(&risks);
+
+    println!("Built map with that is {}x{}", max_x, max_y);
+    for y in 0..max_y + 1 {
+        for x in 0..max_x + 1 {
+            print!("{}", risks[&Point{x,y}]);
+        }
+        println!();
+    }
 
     let path = a_star(Point {x: 0, y: 0}, Point {x: max_x, y: max_y}, &risks, max_x, max_y);
 
