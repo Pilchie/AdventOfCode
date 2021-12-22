@@ -9,6 +9,8 @@ fn main() -> Result<(), std::io::Error> {
 
     value.print();
     println!();
+
+    println!("The magnitude is: {}", value.magnitude());
     Ok(())
 }
 
@@ -120,6 +122,13 @@ impl Term {
             Term::Pair(p) => p.print(),
         }
     }
+
+    fn magnitude(&self) -> i32 {
+        match self {
+            Term::Value(v) => *v,
+            Term::Pair(p) => p.magnitude(),
+        }
+    }
 }
 
 impl Clone for Term {
@@ -144,5 +153,9 @@ impl Pair {
         print!(",");
         self.rhs.print();
         print!("]");
+    }
+
+    fn magnitude(&self) -> i32 {
+        3 * self.lhs.magnitude() + 2 * self.rhs.magnitude()
     }
 }
