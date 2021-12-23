@@ -19,12 +19,13 @@ fn main() -> Result<(), std::io::Error> {
 
     lines.next();
 
-    let image = Image::parse(&mut lines);
+    let mut image = Image::parse(&mut lines);
 
-    let step1 = image.enhance(&map);
-    let step2 = step1.enhance(&map);
+    for _ in 0..50 {
+        image = image.enhance(&map);
+    }
 
-    println!("There are {} lit pixels", step2.pixels.len());
+    println!("There are {} lit pixels", image.pixels.len());
 
     Ok(())
 }
