@@ -25,7 +25,7 @@ func main() {
 		min1, max1 := get_range(sections[0])
 		min2, max2 := get_range(sections[1])
 
-		if min1 <= min2 && max1 >= max2 || min2 <= min1 && max2 >= max1 {
+		if intersect(min1, min2, max1, max2) {
 			count++
 		}
 	}
@@ -35,6 +35,20 @@ func main() {
 	}
 
 	fmt.Printf("The number of contained sections is %d\n", count)
+}
+
+func completely_contained(min1 int, min2 int, max1 int, max2 int) bool {
+	return min1 <= min2 && max1 >= max2 || min2 <= min1 && max2 >= max1
+}
+
+func intersect(min1 int, min2 int, max1 int, max2 int) bool {
+	if min1 <= min2 && max1 >= min2 {
+		return true
+	} else if min2 <= min1 && max2 >= min1 {
+		return true
+	} else {
+		return false
+	}
 }
 
 func get_range(s string) (int, int) {
