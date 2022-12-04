@@ -18,31 +18,52 @@ func main() {
 
 	sum := 0
 	count := 0
+	firstline := make(map[byte]bool)
 	for scanner.Scan() {
 		line := scanner.Text()
-		count++
-		set := map[byte]bool{}
-		for i := 0; i < len(line)/2; i++ {
-			set[line[i]] = true
-		}
+		//fmt.Printf("The line is: %s, line number: %d, place group: %d\n", line, count, count%3)
+		thisline := make(map[byte]bool)
 
-		for i := len(line) / 2; i < len(line); i++ {
-			if _, ok := set[line[i]]; ok {
-				priority := line[i] - 'A' + 1
+		switch count % 3 {
+		case 0:
+			for i := 0; i < len(line); i++ {
+				thisline[line[i]] = true
+			}
+		case 1:
+			fallthrough
+		case 2:
+			for i := 0; i < len(line); i++ {
+				_, ok := firstline[line[i]]
+				//fmt.Printf("%d was %v, ", line[i], ok)
+				if ok {
+					thisline[line[i]] = true
+				}
+			}
+		}
+		//fmt.Printf("Prev map was %v, Current map is %v\n", firstline, thisline)
+
+		firstline = thisline
+
+		if count%3 == 2 {
+			common := 0
+			for key := range firstline {
+				common++
+				priority := key - 'A' + 1
 				if priority <= 26 {
 					priority += 26
 				} else {
-					priority = line[i] - 'a' + 1
+					priority = key - 'a' + 1
 				}
 				sum += int(priority)
-				fmt.Printf("Line length was %d, split at %d, Found %c, adding %d\n", len(line), len(line)/2, line[i], priority)
-
-				if priority < 1 || priority > 52 {
-					fmt.Printf("Calculated priority wrong with %d, char was %c", priority, line[i])
-				}
-				break
+				fmt.Printf("Found %c in common, adding %d to sum\n", key, priority)
+			}
+			if common == 0 {
+				log.Fatal("Didn't find any items in common among 3 lines\n")
+			} else if common > 1 {
+				log.Fatal(fmt.Sprintf("%d items in common among 3 lines\n", common))
 			}
 		}
+		count++
 	}
 
 	if err := scanner.Err(); err != nil {
