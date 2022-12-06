@@ -30,7 +30,7 @@ func main() {
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		fmt.Printf("Parsing line: '%s'\n", line)
+		//fmt.Printf("Parsing line: '%s'\n", line)
 		if inStacks {
 			if line[1] == '1' {
 				inStacks = false
@@ -54,11 +54,26 @@ func main() {
 	}
 
 	for i := range instructions {
+		fmt.Printf("Moving %d from %d to %d. From has %d, to has %d\n",
+			instructions[i].count, instructions[i].from, instructions[i].to,
+			stacks[instructions[i].from-1].Len(), stacks[instructions[i].to-1].Len())
+
+		temp := list.New()
 		for m := 0; m < instructions[i].count; m++ {
 			crate := stacks[instructions[i].from-1].Back()
 			stacks[instructions[i].from-1].Remove(crate)
-			stacks[instructions[i].to-1].PushBack(crate.Value)
+			temp.PushBack(crate.Value)
 		}
+
+		for c := temp.Back(); c != nil; c = c.Prev() {
+			stacks[instructions[i].to-1].PushBack(c.Value)
+		}
+
+		fmt.Printf("After move, from is: '")
+		printstack(stacks[instructions[i].from-1])
+		fmt.Print("', to is '")
+		printstack(stacks[instructions[i].to-1])
+		fmt.Println("'")
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -70,6 +85,12 @@ func main() {
 		fmt.Printf("%c", stacks[s].Back().Value)
 	}
 	fmt.Println()
+}
+
+func printstack(l *list.List) {
+	for c := l.Front(); c != nil; c = c.Next() {
+		fmt.Printf("%c", c.Value)
+	}
 }
 
 func Atoi(s string) int {
