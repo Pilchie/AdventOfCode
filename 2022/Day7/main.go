@@ -73,12 +73,38 @@ func main() {
 		done = !scanner.Scan()
 	}
 
-	sum := print_smaller_dirs(&root, 100000)
-	fmt.Printf("The sum of sizes is: %d\n", sum)
+	total := 70000000
+	need := 30000000
+	avail := total - root.SizeRecursive()
+	to_free := need - avail
 
+	d, s := find_smallest_bigger(&root, to_free)
+	fmt.Printf("Delete dir %s of size %d\n", d.name, s)
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func find_smallest_bigger(n *Node, size int) (*Node, int) {
+	var cur_node *Node = nil
+	cur_size := 0
+	for i := range n.children {
+		n, s := find_smallest_bigger(n.children[i], size)
+		if n != nil && (cur_node == nil || s < cur_size) {
+			cur_node = n
+			cur_size = s
+		}
+	}
+
+	if cur_node != nil {
+		return cur_node, cur_size
+	}
+
+	if sr := n.SizeRecursive(); sr > size {
+		return n, sr
+	}
+
+	return nil, 0
 }
 
 func print_smaller_dirs(n *Node, size int) int {
