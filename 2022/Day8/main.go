@@ -29,19 +29,17 @@ func main() {
 		rows = append(rows, row)
 	}
 
-	// start with a count for the outside rows
-	count := 2*len(rows) + 2*len(rows[0]) - 4
-
-	// now add the interior nodes
+	highest := 0
 	for r := 1; r < len(rows)-1; r++ {
 		for c := 1; c < len(rows[r])-1; c++ {
-			if is_visble(rows, r, c) {
-				count++
+			ss := scenic_score(rows, r, c)
+			if ss > highest {
+				highest = ss
 			}
 		}
 	}
 
-	fmt.Printf("There are %d visible trees\n", count)
+	fmt.Printf("The highest scenic score is %d\n", highest)
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
 	}
@@ -98,4 +96,45 @@ func is_visble(rows [][]int, row int, col int) bool {
 	}
 
 	return false
+}
+
+func scenic_score(rows [][]int, row int, col int) int {
+	height := rows[row][col]
+
+	left := 0
+	for c := col - 1; c >= 0; c-- {
+		left++
+		if rows[row][c] >= height {
+			break
+		}
+	}
+
+	right := 0
+	for c := col + 1; c < len(rows[row]); c++ {
+		right++
+		if rows[row][c] >= height {
+			break
+		}
+	}
+
+	up := 0
+	for r := row - 1; r >= 0; r-- {
+		up++
+		if rows[r][col] >= height {
+			break
+		}
+	}
+
+	down := 0
+	for r := row + 1; r < len(rows); r++ {
+		down++
+		if rows[r][col] >= height {
+			break
+		}
+	}
+
+	ss := left * right * up * down
+	fmt.Printf("For (%d, %d), the results are: u: %d, l: %d, r: %d, d: %d => %d\n",
+		row, col, up, left, right, down, ss)
+	return ss
 }
