@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -24,8 +25,7 @@ func main() {
 	scanner := bufio.NewScanner(f)
 	positions := make(map[Point]bool)
 
-	head := Point{x: 0, y: 0}
-	tail := Point{x: 0, y: 0}
+	points := [10]Point{}
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -37,11 +37,16 @@ func main() {
 		}
 
 		for i := 0; i < dist; i++ {
-			head = move_head(head, dir)
-			tail = move_tail(head, tail)
-			fmt.Printf("Head at (%d, %d), tail at (%d, %d)\n", head.x, head.y, tail.x, tail.y)
-			positions[tail] = true
+			points[0] = move_head(points[0], dir)
+			for p := 1; p < len(points); p++ {
+				points[p] = move_tail(points[p-1], points[p])
+			}
+			positions[points[len(points)-1]] = true
 		}
+
+		fmt.Printf("Processed instruction: %s\n", line)
+		draw(points)
+		fmt.Println()
 
 	}
 
@@ -69,15 +74,69 @@ func move_head(p Point, dir string) Point {
 
 func move_tail(head Point, tail Point) Point {
 	if head.x-tail.x > 1 {
+		if head.y-tail.y > 1 {
+			return Point{x: tail.x + 1, y: tail.y + 1}
+		}
+		if head.y-tail.y < -1 {
+			return Point{x: tail.x + 1, y: tail.y - 1}
+		}
 		return Point{x: tail.x + 1, y: head.y}
-	} else if head.x-tail.x < -1 {
+	}
+
+	if head.x-tail.x < -1 {
+		if head.y-tail.y > 1 {
+			return Point{x: tail.x - 1, y: tail.y + 1}
+		}
+		if head.y-tail.y < -1 {
+			return Point{x: tail.x - 1, y: tail.y - 1}
+		}
 		return Point{x: tail.x - 1, y: head.y}
 	}
 
 	if head.y-tail.y > 1 {
 		return Point{x: head.x, y: tail.y + 1}
-	} else if head.y-tail.y < -1 {
+	}
+
+	if head.y-tail.y < -1 {
 		return Point{x: head.x, y: tail.y - 1}
 	}
 	return tail
+}
+
+func draw(points [10]Point) {
+	minx := math.MaxInt
+	miny := math.MaxInt
+	maxx := math.MinInt
+	maxy := math.MinInt
+
+	for ip := range points {
+		p := points[ip]
+		if p.x < minx {
+			minx = p.x
+		}
+		if p.x > maxx {
+			maxx = p.x
+		}
+		if p.y < miny {
+			miny = p.y
+		}
+		if p.y > maxy {
+			maxy = p.y
+		}
+	}
+
+	for y := miny; y < maxy+1; y++ {
+		for x := minx; x < maxx+1; x++ {
+			pixel := "."
+			for ip := range points {
+				if x == points[ip].x && y == points[ip].y {
+					pixel = fmt.Sprintf("%d", ip)
+					break
+				}
+			}
+			fmt.Printf(pixel)
+		}
+		fmt.Println()
+
+	}
 }
