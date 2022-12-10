@@ -24,7 +24,7 @@ func main() {
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		fmt.Printf("Processed instruction: %s\n", line)
+		//fmt.Printf("Processed instruction: %s\n", line)
 		if line == "noop" {
 			cycle++
 			sum += update(cycle, xreg)
@@ -52,8 +52,19 @@ func main() {
 }
 
 func update(cycle int, xreg int) int {
+	pixel := (cycle % 40) - 1
+
+	if pixel >= xreg-1 && pixel <= xreg+1 {
+		fmt.Print("#")
+	} else {
+		fmt.Print(".")
+	}
+	if pixel == -1 {
+		fmt.Println()
+	}
+
 	if (cycle-20)%40 == 0 {
-		log.Printf("x register during cycle %d is %d -> signal strength: %d\n", cycle, xreg, cycle*xreg)
+		//log.Printf("x register during cycle %d is %d -> signal strength: %d\n", cycle, xreg, cycle*xreg)
 		return cycle * xreg
 	}
 	return 0
