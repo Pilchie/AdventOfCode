@@ -24,8 +24,8 @@ type Monkey struct {
 	inspections int
 }
 
-func (m *Monkey) PlayTurn(monkeys []Monkey) {
-	fmt.Printf("  Playing monkey with items %v\n", m.items)
+func (m *Monkey) PlayTurn(monkeys []Monkey, divisor int) {
+	//fmt.Printf("  Playing monkey with items %v\n", m.items)
 	c := len(m.items)
 	for i := range m.items {
 		m.inspections++
@@ -35,7 +35,7 @@ func (m *Monkey) PlayTurn(monkeys []Monkey) {
 			o = v
 		}
 		v = m.operation(v, o)
-		v = v / 3
+		v = v % divisor
 		if v%m.test.divisor == 0 {
 			//fmt.Printf("    throwing item with value %d to %d\n", v, m.test.destIfTrue)
 			monkeys[m.test.destIfTrue].items = append(monkeys[m.test.destIfTrue].items, v)
@@ -67,10 +67,15 @@ func main() {
 	fmt.Printf("Parsed %d monkeys", len(monkeys))
 	fmt.Println()
 
-	for round := 0; round < 20; round++ {
+	divisors := 1
+	for m := range monkeys {
+		divisors *= monkeys[m].test.divisor
+	}
+
+	for round := 0; round < 10000; round++ {
 		fmt.Printf("Playing round %d\n", round)
 		for m := range monkeys {
-			monkeys[m].PlayTurn(monkeys)
+			monkeys[m].PlayTurn(monkeys, divisors)
 		}
 	}
 
