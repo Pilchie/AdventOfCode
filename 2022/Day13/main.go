@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 )
 
@@ -15,33 +16,27 @@ func main() {
 	}
 	defer f.Close()
 
-	pair := 1
-	sum := 0
+	twoPacket := Packet{elements: []Either[int, Packet]{{value: 2}}}
+	sixPacket := Packet{elements: []Either[int, Packet]{{value: 6}}}
+	packets := SortablePackets{twoPacket, sixPacket}
+
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
-		firstLine := scanner.Text()
-		first := parsePacket(firstLine)
-
-		scanner.Scan()
-		secondLine := scanner.Text()
-		second := parsePacket(secondLine)
-
-		res := comparePackets(first, second)
-		//fmt.Printf("For pair %d, result was %d\n", pair, res)
-		if res < 0 {
-			fmt.Println("Decided to add:")
-			fmt.Printf("  %s\n", firstLine)
-			fmt.Printf("  %s\n", secondLine)
-			fmt.Println()
-			sum += pair
+		if len(scanner.Text()) > 0 {
+			packets = append(packets, parsePacket(scanner.Text()))
 		}
-
-		// consume blank line
-		scanner.Scan()
-		pair++
 	}
 
-	fmt.Printf("The sum of the pairs in the right order is %d\n", sum)
+	sort.Sort(packets)
+
+	value := 1
+	for i := range packets {
+		if comparePackets(twoPacket, packets[i]) == 0 || comparePackets(sixPacket, packets[i]) == 0 {
+			value *= (i + 1)
+		}
+	}
+
+	fmt.Printf("The decoder value is %d\n", value)
 
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
@@ -72,6 +67,22 @@ func (e *Either[A, B]) IsB() bool {
 
 type Packet struct {
 	elements []Either[int, Packet]
+}
+
+type SortablePackets []Packet
+
+func (ps SortablePackets) Len() int {
+	return len(ps)
+}
+
+func (ps SortablePackets) Less(i int, j int) bool {
+	return comparePackets(ps[i], ps[j]) < 0
+}
+
+func (ps SortablePackets) Swap(i int, j int) {
+	temp := ps[i]
+	ps[i] = ps[j]
+	ps[j] = temp
 }
 
 func parsePacket(input string) Packet {
