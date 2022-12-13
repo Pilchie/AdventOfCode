@@ -17,19 +17,30 @@ func main() {
 
 	scanner := bufio.NewScanner(f)
 
-	start, end, theMap := ParseMap(scanner)
+	_, end, theMap := ParseMap(scanner)
 
-	fmt.Printf("Start is (%d, %d), End is (%d, %d)\n",
-		start.row, start.col, end.row, end.col)
+	min := math.MaxInt
 
-	path := A_Star(start, end, theMap)
-
-	fmt.Println()
-	for i := range path {
-		fmt.Printf("(r:%d,c:%d)->\n", path[i].row, path[i].col)
+	for r := range theMap {
+		for c := range theMap[r] {
+			if theMap[r][c] == 0 {
+				start := Point{row: r, col: c}
+				steps := len(A_Star(start, end, theMap)) - 1
+				if steps > 0 {
+					fmt.Printf("Path from (%d, %d)->(%d, %d) takes %d steps\n",
+						start.row, start.col, end.row, end.col, steps)
+					if steps < min {
+						min = steps
+					}
+				} else {
+					fmt.Printf("No path from (%d, %d)->(%d, %d)\n",
+						start.row, start.col, end.row, end.col)
+				}
+			}
+		}
 	}
-	fmt.Println()
-	fmt.Printf("The shortest path is %d steps\n", len(path)-1)
+
+	fmt.Printf("The shortest path is %d steps\n", min)
 
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
@@ -121,7 +132,7 @@ func A_Star(start Point, goal Point, theMap [][]byte) []Point {
 
 		openSet = remove(openSet, current)
 
-		fmt.Printf("Trying current = Row:%d, Col:%d\n", current.row, current.col)
+		//fmt.Printf("Trying current = Row:%d, Col:%d\n", current.row, current.col)
 		neighbors := neighbors(current, theMap)
 		for n := range neighbors {
 			neighbor := neighbors[n]
@@ -138,7 +149,7 @@ func A_Star(start Point, goal Point, theMap [][]byte) []Point {
 				gneighbor = math.MaxInt
 			}
 
-			fmt.Printf(" Considering neighbor r:%d,c:%d, with tentative_gScore %d and gneighbor %d\n", neighbor.row, neighbor.col, tentative_gScore, gneighbor)
+			//fmt.Printf(" Considering neighbor r:%d,c:%d, with tentative_gScore %d and gneighbor %d\n", neighbor.row, neighbor.col, tentative_gScore, gneighbor)
 			if tentative_gScore < gneighbor {
 				// This path to neighbor is better than any previous one. Record it!
 				cameFrom[neighbor] = current
@@ -151,7 +162,6 @@ func A_Star(start Point, goal Point, theMap [][]byte) []Point {
 		}
 	}
 
-	log.Fatal("Unable to find a path")
 	return openSet
 }
 
