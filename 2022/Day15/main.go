@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -17,7 +18,8 @@ func main() {
 	defer f.Close()
 
 	locations := map[Point]int{}
-	beacons := []Point{}
+	beacons := map[Point]bool{}
+
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -26,7 +28,7 @@ func main() {
 		sy, _ := strconv.Atoi(parts[3][2 : len(parts[3])-1])
 		bx, _ := strconv.Atoi(parts[8][2 : len(parts[8])-1])
 		by, _ := strconv.Atoi(parts[9][2:])
-		beacons = append(beacons, Point{x: bx, y: by})
+		beacons[Point{x: bx, y: by}] = false
 
 		dx := intabs(bx - sx)
 		dy := intabs(by - sy)
@@ -35,33 +37,23 @@ func main() {
 		locations[Point{x: sx, y: sy}] = dist
 	}
 
-	y_value := 2000000
-	intersections := findIntersections(locations, y_value)
+	min := 0
+	max := 4000000
+	done := false
+	for y := min; y <= max && !done; y++ {
+		intersections := findIntersections(locations, y)
+		sort.Slice(intersections, func(i, j int) bool {
+			return intersections[i].min < intersections[j].min
+		})
 
-	blocked := map[int]bool{}
-	for b := range beacons {
-		if beacons[b].y == y_value {
-			blocked[beacons[b].x] = false
+		intersections = mergeRanges(intersections)
+
+		if len(intersections) > 1 {
+			fmt.Printf("Intersections on y=%d are: %v\n", y, intersections)
+			x := intersections[0].max + 1
+			fmt.Printf("Tuning frequency is %d\n", x*4000000+y)
 		}
 	}
-	for i := range intersections {
-		fmt.Printf("No beacons from %3d to %3d\n", intersections[i].min, intersections[i].max)
-		for x := intersections[i].min; x <= intersections[i].max; x++ {
-			if _, ok := blocked[x]; !ok {
-				blocked[x] = true
-			}
-		}
-	}
-
-	count := 0
-	for x := range blocked {
-		b := blocked[x]
-		if b {
-			count++
-		}
-	}
-
-	fmt.Printf("The count is %d\n", count)
 
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
@@ -90,18 +82,44 @@ func findIntersections(locations map[Point]int, y_value int) []Range {
 }
 
 func findIntersection(p Point, distance int, y_value int) *Range {
-	fmt.Printf("Finding the intersection of (%d,%d) with range %d, and line at y=%d",
-		p.x, p.y, distance, y_value)
+	//fmt.Printf("Finding the intersection of (%d,%d) with range %d, and line at y=%d",
+	//	p.x, p.y, distance, y_value)
 	y_dist := intabs(p.y - y_value)
 	if y_dist > distance {
-		fmt.Printf(" - y_dist is %d, so no intersection\n", y_dist)
+		//fmt.Printf(" - y_dist is %d, so no intersection\n", y_dist)
 		return nil
 	}
 
 	min := p.x - (distance - y_dist)
 	max := p.x + (distance - y_dist)
-	fmt.Printf(" - y_dist is %d, so intersection from %d to %d\n", y_dist, min, max)
+	//fmt.Printf(" - y_dist is %d, so intersection from %d to %d\n", y_dist, min, max)
 	return &Range{min, max}
+}
+
+func mergeRanges(ranges []Range) []Range {
+	length := len(ranges)
+	if length == 1 {
+		return ranges
+	}
+
+	merged := []Range{}
+	start := 0
+	for start < length {
+		max := ranges[start].max
+		end := start
+		for end < length && ranges[end].min <= max+1 {
+			max = intmax(max, ranges[end].max)
+			end++
+		}
+		if end < length {
+			merged = append(merged, Range{min: ranges[start].min, max: max})
+			start = end
+		} else {
+			merged = append(merged, Range{min: ranges[start].min, max: intmax(max, ranges[length-1].max)})
+			break
+		}
+	}
+	return merged
 }
 
 func intabs(i int) int {
@@ -109,5 +127,12 @@ func intabs(i int) int {
 		return -1 * i
 	} else {
 		return i
+	}
+}
+func intmax(i, j int) int {
+	if i >= j {
+		return i
+	} else {
+		return j
 	}
 }
