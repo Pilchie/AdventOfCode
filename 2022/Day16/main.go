@@ -6,8 +6,10 @@ import (
 	"log"
 	"math"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func main() {
@@ -23,8 +25,15 @@ func main() {
 		line := scanner.Text()
 		valve := parseValve(line)
 		valves[valve.name] = valve
+	}
 
-		valve.print()
+	// Make the algorithm a bit more greedy by listing the
+	// destinations with the highest flowRate first.
+	for _, v := range valves {
+		sort.Slice(v.destinations, func(i, j int) bool {
+			return valves[v.destinations[i]].flowRate > valves[v.destinations[j]].flowRate
+		})
+		v.print()
 	}
 
 	openValveMask := make(map[string]uint16)
@@ -213,6 +222,7 @@ func part2(valves map[string]Valve, openValveMask map[string]uint16, limit int) 
 
 	seen := make(map[[2]string]map[uint16]int)
 	prevMinute := 0
+	t0 := time.Now()
 
 nextState:
 	for {
@@ -225,7 +235,7 @@ nextState:
 		searchSpace = searchSpace[1:]
 
 		if currentState.minute != prevMinute {
-			fmt.Printf("Processing minute %d, with %d items, seen %d, currentVal: %d\n", currentState.minute, searchSpaceSize, count2(seen), currentState.totalFlow)
+			fmt.Printf("Elapsed: %v, Processing minute %d, with %d items, seen %d, currentVal: %d\n", time.Since(t0), currentState.minute, searchSpaceSize, count2(seen), currentState.totalFlow)
 			prevMinute = currentState.minute
 		}
 
