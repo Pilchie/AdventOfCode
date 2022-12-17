@@ -27,48 +27,11 @@ func main() {
 		valve.print()
 	}
 
-	pressure := 0
 	open := map[string]bool{}
 	position := "AA"
-	for step := 0; step < 30; step++ {
-		fmt.Printf("Step %2d - ", step)
-		stepPressure := minute(open, valves)
-		if len(open) < len(valves) {
-			v := valves[position]
-			if v.flowRate == 0 {
-				// Mark that we've visited this one so we don't come back
-				open[position] = true
-			}
-
-			if _, found := open[position]; found {
-				// It's open or jammed, pick the tunnel out of it that leads to the
-				// valve with the highest flow rate that is still closed
-
-				max := math.MinInt
-				maxname := ""
-				for di := range v.destinations {
-					dname := v.destinations[di]
-					dvalve := valves[dname]
-					if _, dfound := open[dname]; !dfound {
-						if dvalve.flowRate > max {
-							max = dvalve.flowRate
-							maxname = dvalve.name
-						}
-					}
-				}
-				fmt.Printf("Moving to '%s'", maxname)
-				position = maxname
-			} else {
-				// It's not open, open it
-				open[position] = true
-				fmt.Printf("Opening   '%s'", position)
-			}
-		}
-
-		pressure += stepPressure
-		fmt.Printf(" - released %2d pressure this step for a total of %4d\n", stepPressure, pressure)
-	}
-
+	step := 0
+	limit := 30
+	pressure := step_recursive(position, valves, open, step, limit, "AA")
 	fmt.Printf("Released %d pressure\n", pressure)
 
 	if err := scanner.Err(); err != nil {
@@ -98,17 +61,70 @@ func parseValve(input string) Valve {
 
 	destinations := []string{}
 	for i := range rawValves {
-		destinations = append(destinations, strings.Trim(rawValves[i], " "))
+		destinations = append(destinations, strings.TrimSpace(rawValves[i]))
 	}
 
 	return Valve{name, flowRate, destinations}
 }
 
-func minute(open map[string]bool, valves map[string]Valve) int {
+func current_flow(open map[string]bool, valves map[string]Valve) int {
 	pressure := 0
 	for o := range open {
-		v := valves[o]
-		pressure += v.flowRate
+		pressure += valves[o].flowRate
 	}
 	return pressure
+}
+
+func step_recursive(position string, valves map[string]Valve, open map[string]bool, step int, limit int, path string) int {
+	step++
+	if step > limit {
+		return 0
+	}
+
+	current := current_flow(open, valves)
+
+	// All valves are open, do nothing
+	if len(open) == len(valves) {
+		return current + step_recursive(position, valves, open, step, limit, path+position)
+	}
+
+	// Open the current valve
+	valve := valves[position]
+	max_children := math.MinInt
+	if valve.flowRate > 0 {
+		if v, f := open[position]; !f || !v {
+			// clone open, add current
+			cloned := clone(open)
+			cloned[position] = true
+			child := step_recursive(position, valves, cloned, step, limit, path+"o")
+			if child > max_children {
+				max_children = child
+			}
+		}
+	} else {
+		// Mark this open, so we don't look at it again
+		open[position] = true
+	}
+
+	// or, travel through one of the tunnels
+	for d := range valve.destinations {
+		child := step_recursive(valve.destinations[d], valves, open, step, limit, path+valve.destinations[d])
+		if child > max_children {
+			max_children = child
+		}
+	}
+
+	res := current + max_children
+	if step < 15 {
+		fmt.Printf("%s - %d\n", path, res)
+	}
+	return res
+}
+
+func clone(m map[string]bool) map[string]bool {
+	res := map[string]bool{}
+	for k := range m {
+		res[k] = m[k]
+	}
+	return res
 }
