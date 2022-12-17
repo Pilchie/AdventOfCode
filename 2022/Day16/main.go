@@ -31,14 +31,14 @@ func main() {
 	bitPosition := 0
 	for k, v := range valves {
 		if v.flowRate > 0 {
-			fmt.Printf("Setting mask for %s to %04x\n", k, 1<<bitPosition)
 			openValveMask[k] = 1 << bitPosition
 			bitPosition++
 		}
 	}
 
-	pressure, path := part1(valves, openValveMask, 30)
-	fmt.Printf("Released %d pressure via %s\n", pressure, path)
+	//pressure, path := part1(valves, openValveMask, 30)
+	pressure := part2(valves, openValveMask, 26)
+	fmt.Printf("Released %d pressure\n", pressure)
 
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
@@ -82,7 +82,15 @@ type State struct {
 	path        string
 }
 
-func count(m map[string]map[uint16]int) int {
+func count2(m map[[2]string]map[uint16]int) int {
+	res := 0
+	for _, v := range m {
+		res += len(v)
+	}
+	return res
+}
+
+func count1(m map[string]map[uint16]int) int {
 	res := 0
 	for _, v := range m {
 		res += len(v)
@@ -117,7 +125,7 @@ nextState:
 		searchSpace = searchSpace[1:]
 
 		if currentState.minute != prevMinute {
-			fmt.Printf("Processing minute %d, with %d items, seen %d, currentVal: %d\n", currentState.minute, searchSpaceSize, count(seen), currentState.totalFlow)
+			fmt.Printf("Processing minute %d, with %d items, seen %d, currentVal: %d\n", currentState.minute, searchSpaceSize, count1(seen), currentState.totalFlow)
 			prevMinute = currentState.minute
 		}
 
@@ -183,4 +191,127 @@ nextState:
 	}
 
 	return largestFlow, largestPath
+}
+
+type State2 struct {
+	openState   uint16
+	positions   [2]string
+	minute      int
+	currentFlow int
+	totalFlow   int
+}
+
+func part2(valves map[string]Valve, openValveMask map[string]uint16, limit int) int {
+	largestFlow := math.MinInt
+
+	var initialOpens uint16
+	for i := len(openValveMask); i < 16; i++ {
+		initialOpens = initialOpens | (1 << i)
+	}
+
+	searchSpace := []State2{{positions: [2]string{"AA", "AA"}, minute: 0, openState: initialOpens}}
+
+	seen := make(map[[2]string]map[uint16]int)
+	prevMinute := 0
+
+nextState:
+	for {
+		searchSpaceSize := len(searchSpace)
+		if searchSpaceSize == 0 {
+			break
+		}
+
+		currentState := searchSpace[0]
+		searchSpace = searchSpace[1:]
+
+		if currentState.minute != prevMinute {
+			fmt.Printf("Processing minute %d, with %d items, seen %d, currentVal: %d\n", currentState.minute, searchSpaceSize, count2(seen), currentState.totalFlow)
+			prevMinute = currentState.minute
+		}
+
+		if currentState.minute >= limit {
+			if currentState.totalFlow > largestFlow {
+				largestFlow = currentState.totalFlow
+			}
+			continue nextState
+		}
+
+		if opens, ok := seen[currentState.positions]; !ok {
+			seen[currentState.positions] = make(map[uint16]int)
+		} else {
+			for key, val := range opens {
+				if val > currentState.totalFlow {
+					// If we've seen the same *or more* valves open, we don't need to continue down this path
+					if key&currentState.openState == currentState.openState {
+						continue nextState
+					}
+				}
+			}
+		}
+		seen[currentState.positions][currentState.openState] = currentState.totalFlow
+
+		candidateMoves := [2][]Move{}
+		for i := 0; i < 2; i++ {
+			candidateMoves[i] = moves(currentState.positions[i], currentState.openState, valves, openValveMask)
+		}
+
+		for _, you := range candidateMoves[0] {
+			for _, elephant := range candidateMoves[1] {
+				// We can't both open the save valve
+				if you.newOpen != "" && you.newOpen == elephant.newOpen {
+					continue
+				}
+
+				openState := currentState.openState
+				if you.newOpen != "" {
+					openState |= openValveMask[you.newOpen]
+				}
+				if elephant.newOpen != "" {
+					openState |= openValveMask[elephant.newOpen]
+				}
+
+				// Sort positions so that they appear consistently in the "seen" table.
+				var positions [2]string
+				if you.position <= elephant.position {
+					positions = [2]string{you.position, elephant.position}
+				} else {
+					positions = [2]string{elephant.position, you.position}
+				}
+
+				searchSpace = append(searchSpace, State2{
+					positions:   positions,
+					minute:      currentState.minute + 1,
+					currentFlow: currentState.currentFlow + you.addFlow + elephant.addFlow,
+					totalFlow:   currentState.currentFlow + currentState.totalFlow,
+					openState:   openState,
+				})
+			}
+		}
+	}
+
+	return largestFlow
+}
+
+type Move struct {
+	position string
+	newOpen  string
+	addFlow  int
+}
+
+func moves(position string, openState uint16, valves map[string]Valve, openValveMask map[string]uint16) []Move {
+	res := []Move{}
+	allTrue := uint16(math.MaxUint16)
+
+	if openState == allTrue {
+		res = append(res, Move{position: position})
+	} else {
+		open := openState&openValveMask[position] > 0
+		if !open && valves[position].flowRate > 0 {
+			res = append(res, Move{position: position, newOpen: position, addFlow: valves[position].flowRate})
+		}
+		for _, v := range valves[position].destinations {
+			res = append(res, Move{position: v})
+		}
+	}
+	return res
 }
