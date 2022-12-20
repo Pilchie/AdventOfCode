@@ -28,16 +28,22 @@ func main() {
 	}
 
 	part1(bluePrints)
+	part2(bluePrints)
 }
 
 type BluePrint struct {
 	id    byte
 	costs [4][3]byte
+	maxes [4]byte
+}
+
+func (bp *BluePrint) maxResourceCost(resourceIndex int) byte {
+	return bp.maxes[resourceIndex]
 }
 
 func parseBlueBrint(input string) BluePrint {
 	parts := strings.Split(input, " ")
-	return BluePrint{
+	bp := BluePrint{
 		id: parseByte(strings.TrimRight(parts[1], ":")),
 		costs: [4][3]byte{
 			{parseByte(parts[6]), 0, 0},
@@ -46,6 +52,18 @@ func parseBlueBrint(input string) BluePrint {
 			{parseByte(parts[27]), 0, parseByte(parts[30])},
 		},
 	}
+
+	for i := 0; i < len(bp.costs[0]); i++ {
+
+		max := bp.costs[0][i]
+		for _, c := range bp.costs[1:] {
+			if c[i] > max {
+				max = c[i]
+			}
+		}
+		bp.maxes[i] = max
+	}
+	return bp
 }
 
 func parseByte(input string) byte {
@@ -62,10 +80,28 @@ func part1(bluePrints []BluePrint) {
 	start := time.Now()
 	for _, bp := range bluePrints {
 		fmt.Printf("Starting BluePrint %d\n", bp.id)
-		geodes := maxGeodes(bp)
+		geodes := maxGeodes(bp, 24)
 		qualityLevel := int(bp.id) * int(geodes)
 		res += qualityLevel
 		fmt.Printf("Completed BluePrint %d - geodes: %d, qualityLevel: %d\n", bp.id, geodes, qualityLevel)
+	}
+
+	fmt.Printf("The sum of the quality levels is %d (took %v)\n", res, time.Since(start))
+}
+
+func part2(bluePrints []BluePrint) {
+	res := 1
+
+	start := time.Now()
+	for i, bp := range bluePrints {
+		if i > 2 {
+			break
+		}
+
+		fmt.Printf("Starting BluePrint %d\n", bp.id)
+		geodes := maxGeodes(bp, 32)
+		res *= int(geodes)
+		fmt.Printf("Completed BluePrint %d - geodes: %d\n", bp.id, geodes)
 	}
 
 	fmt.Printf("The sum of the quality levels is %d (took %v)\n", res, time.Since(start))
@@ -84,16 +120,16 @@ type Cache struct {
 	robots    [4]byte
 }
 
-func maxGeodes(bluePrint BluePrint) byte {
+func maxGeodes(bluePrint BluePrint, limit byte) byte {
 	best := State{minute: 1, opened: 0, robots: [4]byte{1, 0, 0, 0}}
 
-	searchSpace := []State{best}
+	searchSpace := Queue{}
+	searchSpace.push(best)
 	seen := map[Cache]byte{}
 
 	prevMinute := byte(0)
-	for len(searchSpace) > 0 {
-		current := searchSpace[0]
-		searchSpace = searchSpace[1:]
+	for !searchSpace.isEmpty() {
+		current := searchSpace.pop()
 
 		cacheEntry := Cache{current.materials, current.robots}
 		if val, ok := seen[cacheEntry]; ok && val >= current.opened {
@@ -101,7 +137,7 @@ func maxGeodes(bluePrint BluePrint) byte {
 		}
 		seen[cacheEntry] = current.opened
 
-		if current.minute > 24 {
+		if current.minute > limit {
 			if current.opened > best.opened {
 				best = current
 			}
@@ -112,45 +148,66 @@ func maxGeodes(bluePrint BluePrint) byte {
 			prevMinute = current.minute
 
 			current.printState()
-			fmt.Printf("Remaining search space %d\n", len(searchSpace))
+			fmt.Printf(" - Remaining search space %d\n", searchSpace.length())
 		}
 
-		// Greedily try to build the most advanced robot first
-		for costsIdx := len(bluePrint.costs) - 1; costsIdx >= 0; costsIdx-- {
-			next := next(current)
-			build := true
-			for rc, cc := range bluePrint.costs[costsIdx] {
-				if current.materials[rc] < cc {
-					build = false
-				} else {
-					next.materials[rc] -= cc
+		// If we're in the last minute, there is no point building another robot, since it won't have time do anything.
+		if current.minute != limit {
+			// Greedily try to build the most advanced robot first. This means we're more likely
+			// to find a better match in our memoization table.
+			for robotToBuild := 0; robotToBuild < len(bluePrint.costs); robotToBuild++ {
+				// If we already produce enough of the resource robotToBuild produces to build any robot every minute,
+				// don't build it.
+				if robotToBuild != len(bluePrint.costs)-1 {
+					//timeLeft := limit - current.minute
+					xRobots := current.robots[robotToBuild]
+					//yStock := current.materials[robotToBuild]
+					zMaxCost := bluePrint.maxResourceCost(robotToBuild)
+					if xRobots >= zMaxCost {
+						continue
+					}
 				}
-			}
-			if build {
-				next.robots[costsIdx]++
-				searchSpace = append(searchSpace, next)
+
+				build := true
+				next := next(current)
+				for resourceIndex, resourceCost := range bluePrint.costs[robotToBuild] {
+					if current.materials[resourceIndex] < resourceCost {
+						build = false
+					} else {
+						next.materials[resourceIndex] -= resourceCost
+					}
+				}
+				if build {
+					next.robots[robotToBuild]++
+					searchSpace.push(next)
+				}
 			}
 		}
 
 		// There is always an option where we don't build anything.
-		searchSpace = append(searchSpace, next(current))
+		searchSpace.push(next(current, 1))
 	}
 
 	cur := &best
+	fmt.Println()
+	fmt.Println("Done - best path was:")
+	fmt.Println("---------------------")
 	for cur != nil {
 		cur.printState()
+		fmt.Println()
 		cur = cur.prev
 	}
+	fmt.Println("---------------------")
 	return best.opened
 }
 
-func next(current State) State {
+func next(current State, minutes int) State {
 	next := current
 	next.prev = &current
-	next.minute++
-	next.opened = current.opened + current.robots[3]
+	next.minute += byte(minutes)
+	next.opened = current.opened + byte(minutes)*current.robots[3]
 	for i := 0; i < len(current.robots); i++ {
-		next.materials[i] += current.robots[i]
+		next.materials[i] += byte(minutes) * current.robots[i]
 	}
 	return next
 }
@@ -164,5 +221,60 @@ func (current *State) printState() {
 	for _, r := range current.robots {
 		fmt.Printf("%d, ", r)
 	}
-	fmt.Printf("Opened: %d\n", current.opened)
+	fmt.Printf("Opened: %d", current.opened)
+}
+
+type Node struct {
+	elements [10000]State
+	next     *Node
+
+	start int
+	end   int
+}
+type Queue struct {
+	head *Node
+	tail *Node
+}
+
+func (q *Queue) push(s State) {
+	if q.head == nil {
+		q.head = &Node{}
+		q.tail = q.head
+		q.head.elements[0] = s
+		q.head.end = 1
+	} else if q.tail.end == len(q.tail.elements) {
+		n := Node{
+			start: 0,
+			end:   1,
+		}
+		q.tail.next = &n
+		q.tail = &n
+	} else {
+		q.tail.elements[q.tail.end] = s
+		q.tail.end++
+	}
+}
+
+func (q *Queue) pop() State {
+	n := q.head.elements[q.head.start]
+	q.head.start++
+	if q.head.start == q.head.end {
+		q.head = q.head.next
+		if q.head == nil {
+			q.tail = nil
+		}
+	}
+	return n
+}
+
+func (q *Queue) isEmpty() bool {
+	return q.head == nil
+}
+
+func (q *Queue) length() int {
+	len := 0
+	for c := q.head; c != nil; c = c.next {
+		len += c.end - c.start
+	}
+	return len
 }
