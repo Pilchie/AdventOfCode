@@ -65,11 +65,19 @@ func (cl *CircularList) append(val int) *Node {
 func (cl *CircularList) print() {
 	cur := cl.head
 	fmt.Print("[")
+
+	count := 0
 	for {
 		fmt.Printf("%d, ", cur.val)
 
 		cur = cur.next
 		if cur == cl.head {
+			break
+		}
+
+		count++
+		if count > 10 {
+			fmt.Print("...")
 			break
 		}
 	}
@@ -79,73 +87,22 @@ func (cl *CircularList) print() {
 func part1(numbers []int) {
 	fmt.Println("-----------------")
 	fmt.Println("Starting Part One")
-	res := CircularList{}
-	nodes := []*Node{}
-	for _, n := range numbers {
-		nodes = append(nodes, res.append(n))
-	}
-
-	for i, changeby := range numbers {
-		cur := nodes[i]
-		if changeby > 0 {
-			for i := 0; i < changeby; i++ {
-				p := cur.prev
-				n := cur.next
-				nn := n.next
-				p.next = n
-				n.prev = p
-				n.next = cur
-				cur.prev = n
-				cur.next = nn
-				nn.prev = cur
-			}
-		} else {
-			for i := 0; i > changeby; i-- {
-				p := cur.prev
-				pp := p.prev
-				n := cur.next
-				pp.next = cur
-				cur.prev = pp
-				cur.next = p
-				p.prev = cur
-				p.next = n
-				n.prev = p
-			}
-		}
-	}
-
-	cur := res.head
-	afterZero := 0
-	started := false
-	sum := 0
-	for {
-		if cur.val == 0 {
-			started = true
-		}
-
-		if started {
-			if afterZero%1000 == 0 {
-				sum += cur.val
-				fmt.Printf("Val %d is %d\n", afterZero, cur.val)
-			}
-			if afterZero == 3000 {
-				break
-			}
-			afterZero++
-		}
-
-		cur = cur.next
-	}
-	fmt.Printf("The sum is %d\n", sum)
+	decrypt(numbers, 1, 1)
 }
 
 func part2(numbers []int) {
 	fmt.Println("-----------------")
 	fmt.Println("Starting Part Two")
+	decrypt(numbers, 10, 811589153)
+}
+
+func decrypt(input []int, mixes int, key int) {
+	numbers := []int{}
+	numbers = append(numbers, input...)
 	res := CircularList{}
 	nodes := []*Node{}
 	for i, n := range numbers {
-		new := n * 811589153
+		new := n * key
 		numbers[i] = new % (len(numbers) - 1)
 		nodes = append(nodes, res.append(new))
 	}
@@ -154,7 +111,7 @@ func part2(numbers []int) {
 	res.print()
 	fmt.Println()
 
-	for mix := 0; mix < 10; mix++ {
+	for mix := 0; mix < mixes; mix++ {
 		for i, changeby := range numbers {
 			cur := nodes[i]
 			if changeby > 0 {
@@ -187,7 +144,7 @@ func part2(numbers []int) {
 		}
 
 		fmt.Printf("After mixing %d times: ", mix+1)
-		//res.print()
+		res.print()
 		fmt.Println()
 	}
 
