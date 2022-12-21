@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"log"
-	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -34,19 +33,36 @@ func main() {
 			term = Number(v)
 		} else if len(parts) == 3 {
 			var op func(int, int) int
+			var inv func(int, int, bool) int
 			switch parts[1] {
 			case "+":
 				op = func(l, r int) int { return l + r }
-				break
+				inv = func(o, t int, oilhs bool) int { return t - o }
+
 			case "-":
 				op = func(l, r int) int { return l - r }
-				break
+				inv = func(other, target int, otherIsLhs bool) int {
+					if otherIsLhs {
+						return other - target
+					} else {
+						return other + target
+					}
+				}
+
 			case "*":
 				op = func(l, r int) int { return l * r }
-				break
+				inv = func(o, t int, oilhs bool) int { return t / o }
+
 			case "/":
 				op = func(l, r int) int { return l / r }
-				break
+				inv = func(other, target int, otherIsLhs bool) int {
+					if otherIsLhs {
+						return other / target
+					} else {
+						return other * target
+					}
+				}
+
 			default:
 				log.Fatalf("Unexpected operation %v", parts[1])
 			}
@@ -55,6 +71,7 @@ func main() {
 				left:      parts[0],
 				right:     parts[2],
 				operation: op,
+				inverse:   inv,
 			}
 		} else {
 			log.Fatalf("Unexpected input %v", parts)
@@ -78,7 +95,8 @@ func part1(terms map[string]Term) {
 	if !ok {
 		log.Fatal("Unable to find term 'root'")
 	}
-	fmt.Printf("The value is %d\n", rootTerm.calculate(terms))
+	res, _ := rootTerm.calculate(terms)
+	fmt.Printf("The value is %d\n", res)
 }
 
 func part2(terms map[string]Term) {
@@ -89,41 +107,35 @@ func part2(terms map[string]Term) {
 		log.Fatal("Unable to find term 'root'")
 	}
 
-	// Replace root with subtraction, and we'll check equality by
-	// seeing if the result is 0.
 	rootTerm = Calculation{
 		left:      rootTerm.(Calculation).left,
 		right:     rootTerm.(Calculation).right,
 		operation: func(l, r int) int { return l - r },
+		inverse: func(other, target int, otherIsLhs bool) int {
+			if otherIsLhs {
+				return other - target
+			} else {
+				return other + target
+			}
+		},
 	}
 
-	min := 0
-	max := math.MaxInt64 / 2
-	for min < max {
-		seed := min + (max-min)/2
-		terms["humn"] = Number(seed)
-
-		val := rootTerm.calculate(terms)
-		fmt.Printf("seed, %d, val, %d\n", seed, val)
-
-		if val == 0 {
-			fmt.Printf("The necessary seed was %d\n", seed)
-			break
-		} else if val > 0 {
-			min = seed + 1
-		} else {
-			max = seed - 1
-		}
-	}
+	res := rootTerm.find(0, terms)
+	fmt.Printf("The necessary value is %d\n", res)
 }
 
 type Term interface {
-	calculate(terms map[string]Term) int
+	calculate(terms map[string]Term) (int, bool)
+	find(target int, terms map[string]Term) int
 }
 
 type Number int
 
-func (n Number) calculate(terms map[string]Term) int {
+func (n Number) calculate(terms map[string]Term) (int, bool) {
+	return int(n), false
+}
+
+func (n Number) find(target int, terms map[string]Term) int {
 	return int(n)
 }
 
@@ -131,9 +143,10 @@ type Calculation struct {
 	left      string
 	right     string
 	operation func(int, int) int
+	inverse   func(other int, target int, otherIsLhs bool) int
 }
 
-func (c Calculation) calculate(terms map[string]Term) int {
+func (c Calculation) calculate(terms map[string]Term) (int, bool) {
 	leftTerm, ok := terms[c.left]
 	if !ok {
 		log.Fatalf("couldn't find term %s", c.left)
@@ -143,7 +156,30 @@ func (c Calculation) calculate(terms map[string]Term) int {
 		log.Fatalf("couldn't find term %s", c.right)
 	}
 
-	leftVal := leftTerm.calculate(terms)
-	rightVal := rightTerm.calculate(terms)
-	return c.operation(leftVal, rightVal)
+	leftVal, leftHasHumn := leftTerm.calculate(terms)
+	rightVal, rightHasHumn := rightTerm.calculate(terms)
+	hasHumn := leftHasHumn || c.left == "humn" || rightHasHumn || c.right == "humn"
+	return c.operation(leftVal, rightVal), hasHumn
+}
+
+func (c Calculation) find(target int, terms map[string]Term) int {
+	leftTerm := terms[c.left]
+	rightTerm := terms[c.right]
+	leftVal, leftHasHumn := leftTerm.calculate(terms)
+	rightVal, rightHasHumn := rightTerm.calculate(terms)
+
+	if c.left == "humn" {
+		return c.inverse(rightVal, target, false)
+	} else if c.right == "humn" {
+		return c.inverse(leftVal, target, true)
+	}
+
+	if leftHasHumn {
+		return leftTerm.find(c.inverse(rightVal, target, false), terms)
+	} else if rightHasHumn {
+		return rightTerm.find(c.inverse(leftVal, target, true), terms)
+	} else {
+		log.Fatal("Neither side had humn?")
+		return 0
+	}
 }
