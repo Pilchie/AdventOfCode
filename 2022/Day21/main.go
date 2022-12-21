@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -82,6 +83,38 @@ func part1(terms map[string]Term) {
 
 func part2(terms map[string]Term) {
 	fmt.Println("Starting Part2")
+
+	rootTerm, ok := terms["root"]
+	if !ok {
+		log.Fatal("Unable to find term 'root'")
+	}
+
+	// Replace root with subtraction, and we'll check equality by
+	// seeing if the result is 0.
+	rootTerm = Calculation{
+		left:      rootTerm.(Calculation).left,
+		right:     rootTerm.(Calculation).right,
+		operation: func(l, r int) int { return l - r },
+	}
+
+	min := 0
+	max := math.MaxInt64 / 2
+	for min < max {
+		seed := min + (max-min)/2
+		terms["humn"] = Number(seed)
+
+		val := rootTerm.calculate(terms)
+		fmt.Printf("seed, %d, val, %d\n", seed, val)
+
+		if val == 0 {
+			fmt.Printf("The necessary seed was %d\n", seed)
+			break
+		} else if val > 0 {
+			min = seed + 1
+		} else {
+			max = seed - 1
+		}
+	}
 }
 
 type Term interface {
