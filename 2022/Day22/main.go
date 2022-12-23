@@ -25,13 +25,15 @@ func main() {
 		log.Fatal(err)
 	}
 
-	board, directions := parseInput(lines)
-
-	part1(board, directions)
-	part2(board, directions)
+	part1(lines)
+	part2(lines)
 }
 
-func part1(board Board, directions []string) {
+func part1(input []string) {
+	fmt.Printf("---------------\n")
+	fmt.Printf("Starting Part 1\n")
+	fmt.Printf("---------------\n")
+	board, directions := parseInput(input)
 	startPoint := Point{1, 1}
 
 	for {
@@ -55,8 +57,37 @@ func part1(board Board, directions []string) {
 	fmt.Printf("At (row:%d, col:%d), facing %d. Password is %d\n", state.location.row, state.location.col, state.facing, 1000*state.location.row+4*state.location.col+state.facing)
 }
 
-func part2(board Board, directions []string) {
+func part2(input []string) {
+	fmt.Printf("---------------\n")
+	fmt.Printf("Starting Part 2\n")
+	fmt.Printf("---------------\n")
+	board, directions := parseInput2(input)
 
+	startPoint := Point{1, 1}
+
+	for {
+		open, ok := board.tiles[0][startPoint]
+		if ok && open {
+			break
+		}
+		startPoint.col++
+	}
+	state := State2{
+		location: startPoint,
+		face:     1,
+		rowDelta: 0,
+		colDelta: 1,
+	}
+	fmt.Printf("Starting at (face: %d, row:%d, col:%d)\n", state.face, state.location.row, state.location.col)
+
+	for _, d := range directions {
+		state = board.apply(state, d)
+		fmt.Printf(" Applied %s, now at (face: %d, row:%d, col:%d)\n", d, state.face, state.location.row, state.location.col)
+	}
+
+	fmt.Printf("At (face: %d, row:%d, col:%d)", state.face, state.location.row, state.location.col)
+	mapLocation := board.mapLocation(state.face, state.location)
+	fmt.Printf("Password is %d\n", 1000*mapLocation.row+4*mapLocation.col+state.facing())
 }
 
 type Point struct {
@@ -214,6 +245,69 @@ func parseInput(input []string) (Board, []string) {
 	return board, directions
 }
 
+type Board2 struct {
+	tiles      [6]map[Point]bool
+	dimensions int
+}
+
+type State2 struct {
+	location Point
+	face     int
+	rowDelta int
+	colDelta int
+}
+
+func parseInput2(input []string) (Board2, []string) {
+	board := Board2{
+		tiles: [6]map[Point]bool{
+			make(map[Point]bool),
+			make(map[Point]bool),
+			make(map[Point]bool),
+			make(map[Point]bool),
+			make(map[Point]bool),
+			make(map[Point]bool),
+		},
+	}
+
+	line := 0
+	maxcol := 0
+	for face := 0; face < 6; face++ {
+		row := 1
+		for _, char := range input[line] {
+			col := 1
+			if char == ' ' {
+				// Empty space
+			} else if char == '.' {
+				board.tiles[face][Point{row, col}] = true
+				col++
+
+			} else if char == '#' {
+				board.tiles[face][Point{row, col}] = false
+				col++
+			}
+			maxcol = col - 1
+		}
+		row++
+		line++
+		if row == maxcol {
+			face++
+			continue
+		}
+	}
+	board.dimensions = maxcol
+
+	directions := []string{}
+
+	start := 0
+	for start < len(input[line]) {
+		dir, s := extractpart(input[line], start)
+		directions = append(directions, dir)
+		start = s
+	}
+
+	return board, directions
+}
+
 func extractpart(input string, start int) (string, int) {
 	end := start
 	for end < len(input) && input[end] != 'R' && input[end] != 'L' {
@@ -223,4 +317,81 @@ func extractpart(input string, start int) (string, int) {
 		return input[start:end], end
 	}
 	return input[start : start+1], start + 1
+}
+
+func (b *Board2) apply(state State2, direction string) State2 {
+	if direction == "R" {
+		return state.rotateRight()
+	} else if direction == "L" {
+		return state.rotateLeft()
+	} else {
+		steps := 1
+		res := state
+		res.location = Point{
+			row: state.location.row + state.rowDelta*steps,
+			col: state.location.col + state.colDelta*steps}
+		return res
+	}
+}
+
+func (b *Board2) mapLocation(face int, locationOnFace Point) Point {
+	switch face {
+	case 1:
+		return Point{row: locationOnFace.row, col: locationOnFace.col + 2*b.dimensions}
+	case 2:
+		return Point{row: locationOnFace.row + b.dimensions, col: locationOnFace.col}
+	case 3:
+		return Point{row: locationOnFace.row + b.dimensions, col: locationOnFace.col + b.dimensions}
+	case 4:
+		return Point{row: locationOnFace.row + b.dimensions, col: locationOnFace.col + 2*b.dimensions}
+	case 5:
+		return Point{row: locationOnFace.row + 2*b.dimensions, col: locationOnFace.col + 2*b.dimensions}
+	case 6:
+		return Point{row: locationOnFace.row + 2*b.dimensions, col: locationOnFace.col + 3*b.dimensions}
+	default:
+		log.Fatalf("Unexpected face: %d\n", face)
+		return locationOnFace
+	}
+}
+
+func (s *State2) facing() int {
+	if s.colDelta == 1 {
+		return 0
+	} else if s.rowDelta == 1 {
+		return 1
+	} else if s.colDelta == -1 {
+		return 2
+	} else if s.rowDelta == -1 {
+		return 3
+	} else {
+		log.Fatalf("Unexpected facing state %d,%d\n", s.rowDelta, s.colDelta)
+		return -1
+	}
+}
+
+func (s *State2) rotateLeft() State2 {
+	res := *s
+	if s.colDelta == 1 {
+		s.colDelta = 0
+		s.rowDelta = -1
+	} else if s.rowDelta == 1 {
+		s.colDelta = 1
+		s.rowDelta = 0
+	} else if s.colDelta == -1 {
+		s.colDelta = 0
+		s.rowDelta = 1
+	} else if s.rowDelta == -1 {
+		s.colDelta = -1
+		s.rowDelta = 0
+	} else {
+		log.Fatalf("Unexpected facing state %d,%d\n", s.rowDelta, s.colDelta)
+	}
+	return res
+}
+
+func (s *State2) rotateRight() State2 {
+	res := s.rotateLeft()
+	res.rowDelta *= -1
+	res.colDelta *= -1
+	return res
 }
