@@ -31,6 +31,7 @@ func main() {
 }
 
 func part1(input []string) {
+	fmt.Println("Starting Part 1")
 	board := parseBoard(input)
 
 	movements := []func(*Board, Point) Point{
@@ -46,7 +47,7 @@ func part1(input []string) {
 
 	for round := 1; round <= 10; round++ {
 		proposals := board.proposePositions(movements)
-		board.applyProposals(proposals)
+		board = board.applyProposals(proposals)
 
 		// fmt.Println("After round ", round)
 		// board.print()
@@ -126,7 +127,7 @@ func (b *Board) shouldMove(p Point) bool {
 	return false
 }
 
-func (b *Board) applyProposals(proposals []Pair[Point]) {
+func (b *Board) applyProposals(proposals []Pair[Point]) Board {
 	new := make(map[Point]bool)
 
 	// Sort by the new positions so that we can easily find things that are moving to the same position.
@@ -170,7 +171,7 @@ func (b *Board) applyProposals(proposals []Pair[Point]) {
 		}
 	}
 
-	b.elves = new
+	return Board{elves: new}
 }
 
 func (b *Board) bounds() (int, int, int, int) {
@@ -260,5 +261,52 @@ func checkWest(b *Board, p Point) Point {
 }
 
 func part2(input []string) {
+	fmt.Println("Starting Part 2")
+	board := parseBoard(input)
 
+	movements := []func(*Board, Point) Point{
+		checkNorth,
+		checkSouth,
+		checkWest,
+		checkEast,
+	}
+
+	fmt.Println("Initial:")
+	board.print()
+	fmt.Println()
+
+	round := 1
+	for {
+		proposals := board.proposePositions(movements)
+		newBoard := board.applyProposals(proposals)
+
+		if newBoard.equals(&board) {
+			break
+		}
+
+		round++
+		board = newBoard
+		m := movements[0]
+		movements = movements[1:]
+		movements = append(movements, m)
+	}
+
+	fmt.Println("Final")
+	board.print()
+	fmt.Printf("It took %d rounds.\n", round)
+}
+
+func (b *Board) equals(other *Board) bool {
+	if len(b.elves) != len(other.elves) {
+		return false
+	}
+
+	for p, v := range b.elves {
+		o, ok := other.elves[p]
+		if !ok || v != o {
+			return false
+		}
+	}
+
+	return true
 }
