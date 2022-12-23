@@ -63,13 +63,9 @@ func part2(input []string) {
 	fmt.Printf("---------------\n")
 	board, directions := parseInput2(input)
 
-	startPoint := Point{1, 1}
+	startPoint := Point{0, 0}
 
-	for {
-		open, ok := board.tiles[0][startPoint]
-		if ok && open {
-			break
-		}
+	for !board.tiles[0][0][startPoint.col] {
 		startPoint.col++
 	}
 	state := State2{
@@ -85,8 +81,8 @@ func part2(input []string) {
 		fmt.Printf(" Applied %s, now at (face: %d, row:%d, col:%d)\n", d, state.face, state.location.row, state.location.col)
 	}
 
-	fmt.Printf("At (face: %d, row:%d, col:%d)", state.face, state.location.row, state.location.col)
 	mapLocation := board.mapLocation(state.face, state.location)
+	fmt.Printf("At (face: %d, row:%d, col:%d)\n", state.face, mapLocation.row, mapLocation.col)
 	fmt.Printf("Password is %d\n", 1000*mapLocation.row+4*mapLocation.col+state.facing())
 }
 
@@ -246,7 +242,7 @@ func parseInput(input []string) (Board, []string) {
 }
 
 type Board2 struct {
-	tiles      [6]map[Point]bool
+	tiles      [6][][]bool
 	dimensions int
 }
 
@@ -259,53 +255,46 @@ type State2 struct {
 
 func parseInput2(input []string) (Board2, []string) {
 	board := Board2{
-		tiles: [6]map[Point]bool{
-			make(map[Point]bool),
-			make(map[Point]bool),
-			make(map[Point]bool),
-			make(map[Point]bool),
-			make(map[Point]bool),
-			make(map[Point]bool),
-		},
+		tiles:      [6][][]bool{},
+		dimensions: len(input[0]) / 3,
 	}
 
-	line := 0
-	maxcol := 0
-	for face := 0; face < 6; face++ {
-		row := 1
-		for _, char := range input[line] {
-			col := 1
-			if char == ' ' {
-				// Empty space
-			} else if char == '.' {
-				board.tiles[face][Point{row, col}] = true
-				col++
-
-			} else if char == '#' {
-				board.tiles[face][Point{row, col}] = false
-				col++
-			}
-			maxcol = col - 1
-		}
-		row++
-		line++
-		if row == maxcol {
-			face++
-			continue
-		}
-	}
-	board.dimensions = maxcol
+	board.tiles[0] = parseFace(input, 0, 2*board.dimensions, board.dimensions)
+	board.tiles[1] = parseFace(input, board.dimensions, 0, board.dimensions)
+	board.tiles[2] = parseFace(input, board.dimensions, board.dimensions, board.dimensions)
+	board.tiles[3] = parseFace(input, board.dimensions, 2*board.dimensions, board.dimensions)
+	board.tiles[4] = parseFace(input, 2*board.dimensions, 2*board.dimensions, board.dimensions)
+	board.tiles[5] = parseFace(input, 2*board.dimensions, 3*board.dimensions, board.dimensions)
 
 	directions := []string{}
 
 	start := 0
-	for start < len(input[line]) {
-		dir, s := extractpart(input[line], start)
+	directionLine := input[3*board.dimensions+1]
+	for start < len(directionLine) {
+		dir, s := extractpart(directionLine, start)
 		directions = append(directions, dir)
 		start = s
 	}
 
 	return board, directions
+}
+
+func parseFace(input []string, startingRow int, startingCol int, dimensions int) [][]bool {
+	res := make([][]bool, dimensions)
+	for r := 0; r < dimensions; r++ {
+		res[r] = make([]bool, dimensions)
+		for c := 0; c < dimensions; c++ {
+			ch := input[startingRow+r][startingCol+c]
+			if ch == '.' {
+				res[r][c] = true
+			} else if ch == '#' {
+				res[r][c] = false
+			} else {
+				log.Fatalf("Unexpected char '%c' at '%d', '%d'\n", ch, startingRow+r, startingCol+c)
+			}
+		}
+	}
+	return res
 }
 
 func extractpart(input string, start int) (string, int) {
@@ -325,11 +314,161 @@ func (b *Board2) apply(state State2, direction string) State2 {
 	} else if direction == "L" {
 		return state.rotateLeft()
 	} else {
-		steps := 1
+		steps, err := strconv.Atoi(direction)
+		if err != nil {
+			log.Fatalf("Unable to convert steps to number: %s\n", direction)
+		}
 		res := state
-		res.location = Point{
-			row: state.location.row + state.rowDelta*steps,
-			col: state.location.col + state.colDelta*steps}
+		for i := 0; i < steps; i++ {
+			res = b.next(res)
+		}
+		return res
+	}
+}
+
+func (b *Board2) next(state State2) State2 {
+	newRow := state.location.row + state.rowDelta
+	newCol := state.location.col + state.colDelta
+
+	if newRow < 0 || newCol < 0 || newRow == b.dimensions || newCol == b.dimensions {
+		// We hit the edge of our face, move to the next one
+		return b.transition(state)
+	} else if !b.tiles[state.face-1][newRow][newCol] {
+		// We hit a wall - stop here.
+		return state
+	} else {
+		// Just move to the tile
+		res := state
+		res.location = Point{row: newRow, col: newCol}
+		return res
+	}
+}
+
+func (b *Board2) transition(state State2) State2 {
+	res := state
+	switch state.face {
+	case 1:
+		if state.rowDelta > 0 {
+			res.face = 4
+			res.location.row = 0
+		} else if state.rowDelta < 0 {
+			res.face = 5
+			res.location.row = b.dimensions - 1
+		} else if state.colDelta < 0 {
+			res.face = 3
+			res.location.row = 0
+			res.location.col = state.location.row
+			res.rowDelta = 1
+			res.colDelta = 0
+		} else if state.colDelta > 0 {
+			res.face = 6
+			res.location.col = b.dimensions - 1
+			res.colDelta = -1
+		}
+	case 2:
+		if state.rowDelta > 0 {
+			res.face = 5
+			res.location.row = b.dimensions - 1
+			res.location.col = b.dimensions - state.location.col - 1
+			res.rowDelta = -1
+		} else if state.rowDelta < 0 {
+			res.face = 1
+			res.location.row = 0
+			res.location.col = b.dimensions - state.location.col - 1
+			res.rowDelta = 1
+		} else if state.colDelta < 0 {
+			res.face = 6
+			res.location.row = b.dimensions - 1
+			res.location.col = b.dimensions - state.location.col - 1
+			res.rowDelta = -1
+			res.colDelta = 0
+		} else if state.colDelta > 0 {
+			res.face = 3
+			res.location.col = 0
+		}
+	case 3:
+		if state.rowDelta > 0 {
+			res.face = 5
+			res.location.row = b.dimensions - state.location.col - 1
+			res.location.col = 0
+			res.rowDelta = 0
+			res.colDelta = 1
+		} else if state.rowDelta < 0 {
+			res.face = 1
+			res.location.row = state.location.col
+			res.location.col = 0
+			res.rowDelta = 0
+			res.colDelta = 1
+		} else if state.colDelta < 0 {
+			res.face = 2
+			res.location.col = b.dimensions - 1
+		} else if state.colDelta > 0 {
+			res.face = 4
+			res.location.col = 0
+		}
+	case 4:
+		if state.rowDelta > 0 {
+			res.face = 5
+			res.location.row = 0
+		} else if state.rowDelta < 0 {
+			res.face = 1
+			res.location.row = b.dimensions - 1
+		} else if state.colDelta < 0 {
+			res.face = 3
+			res.location.col = b.dimensions - 1
+		} else if state.colDelta > 0 {
+			res.face = 6
+			res.location.row = 0
+			res.location.col = b.dimensions - state.location.row - 1
+			res.rowDelta = 1
+			res.colDelta = 0
+		}
+	case 5:
+		if state.rowDelta > 0 {
+			res.face = 2
+			res.location.row = b.dimensions - 1
+			res.location.col = b.dimensions - state.location.col - 1
+			res.rowDelta = -1
+		} else if state.rowDelta < 0 {
+			res.face = 4
+			res.location.row = b.dimensions - 1
+		} else if state.colDelta < 0 {
+			res.face = 3
+			res.location.row = b.dimensions - 1
+			res.location.col = b.dimensions - state.location.row - 1
+			res.rowDelta = -1
+			res.colDelta = 0
+		} else if state.colDelta > 0 {
+			res.face = 6
+			res.location.col = 0
+		}
+	case 6:
+		if state.rowDelta > 0 {
+			res.face = 2
+			res.location.row = b.dimensions - state.location.col - 1
+			res.location.col = 0
+			res.rowDelta = 0
+			res.colDelta = 1
+		} else if state.rowDelta < 0 {
+			res.face = 4
+			res.location.row = b.dimensions - state.location.col - 1
+			res.location.col = b.dimensions - 1
+			res.rowDelta = 0
+			res.colDelta = -1
+		} else if state.colDelta < 0 {
+			res.face = 5
+			res.location.col = b.dimensions - 1
+		} else if state.colDelta > 0 {
+			res.face = 1
+			res.location.col = b.dimensions - 1
+			res.colDelta = -1
+		}
+	}
+
+	if !b.tiles[res.face-1][res.location.row][res.location.col] {
+		// There is a wall at the transition point, don't move after all
+		return state
+	} else {
 		return res
 	}
 }
@@ -337,17 +476,17 @@ func (b *Board2) apply(state State2, direction string) State2 {
 func (b *Board2) mapLocation(face int, locationOnFace Point) Point {
 	switch face {
 	case 1:
-		return Point{row: locationOnFace.row, col: locationOnFace.col + 2*b.dimensions}
+		return Point{row: locationOnFace.row + 1, col: locationOnFace.col + 2*b.dimensions + 1}
 	case 2:
-		return Point{row: locationOnFace.row + b.dimensions, col: locationOnFace.col}
+		return Point{row: locationOnFace.row + b.dimensions + 1, col: locationOnFace.col + 1}
 	case 3:
-		return Point{row: locationOnFace.row + b.dimensions, col: locationOnFace.col + b.dimensions}
+		return Point{row: locationOnFace.row + b.dimensions + 1, col: locationOnFace.col + b.dimensions + 1}
 	case 4:
-		return Point{row: locationOnFace.row + b.dimensions, col: locationOnFace.col + 2*b.dimensions}
+		return Point{row: locationOnFace.row + b.dimensions + 1, col: locationOnFace.col + 2*b.dimensions + 1}
 	case 5:
-		return Point{row: locationOnFace.row + 2*b.dimensions, col: locationOnFace.col + 2*b.dimensions}
+		return Point{row: locationOnFace.row + 2*b.dimensions + 1, col: locationOnFace.col + 2*b.dimensions + 1}
 	case 6:
-		return Point{row: locationOnFace.row + 2*b.dimensions, col: locationOnFace.col + 3*b.dimensions}
+		return Point{row: locationOnFace.row + 2*b.dimensions + 1, col: locationOnFace.col + 3*b.dimensions + 1}
 	default:
 		log.Fatalf("Unexpected face: %d\n", face)
 		return locationOnFace
@@ -371,20 +510,20 @@ func (s *State2) facing() int {
 
 func (s *State2) rotateLeft() State2 {
 	res := *s
-	if s.colDelta == 1 {
-		s.colDelta = 0
-		s.rowDelta = -1
+	if res.colDelta == 1 {
+		res.colDelta = 0
+		res.rowDelta = -1
 	} else if s.rowDelta == 1 {
-		s.colDelta = 1
-		s.rowDelta = 0
+		res.colDelta = 1
+		res.rowDelta = 0
 	} else if s.colDelta == -1 {
-		s.colDelta = 0
-		s.rowDelta = 1
+		res.colDelta = 0
+		res.rowDelta = 1
 	} else if s.rowDelta == -1 {
-		s.colDelta = -1
-		s.rowDelta = 0
+		res.colDelta = -1
+		res.rowDelta = 0
 	} else {
-		log.Fatalf("Unexpected facing state %d,%d\n", s.rowDelta, s.colDelta)
+		log.Fatalf("Unexpected facing state %d,%d\n", res.rowDelta, res.colDelta)
 	}
 	return res
 }

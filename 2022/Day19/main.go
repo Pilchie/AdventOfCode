@@ -117,6 +117,7 @@ type State struct {
 }
 
 type Cache struct {
+	minute    uint8
 	materials [4]int16
 	robots    [4]uint8
 }
@@ -127,12 +128,13 @@ func maxGeodes(bluePrint BluePrint, limit uint8) uint8 {
 	searchSpace := Queue{}
 	searchSpace.push(best)
 	seen := map[Cache]uint8{}
-
+	skipped := 0
 	for !searchSpace.isEmpty() {
 		current := searchSpace.pop()
 
-		cacheEntry := Cache{current.materials, current.robots}
+		cacheEntry := Cache{current.minute, current.materials, current.robots}
 		if val, ok := seen[cacheEntry]; ok && val >= current.opened {
+			skipped++
 			continue
 		}
 		seen[cacheEntry] = current.opened
@@ -140,7 +142,7 @@ func maxGeodes(bluePrint BluePrint, limit uint8) uint8 {
 		if current.opened > best.opened {
 			fmt.Print("  New best -")
 			current.printState()
-			fmt.Printf(" - Remaining search space %d\n", searchSpace.length())
+			fmt.Printf(" - space %9d, seen %9d, skipped %9d, processed %12d\n", searchSpace.length(), len(seen), skipped, searchSpace.processed)
 			best = current
 		}
 
@@ -149,20 +151,20 @@ func maxGeodes(bluePrint BluePrint, limit uint8) uint8 {
 		}
 
 		// If we're in the last minute, there is no point building another robot, since it won't have time do anything.
-		if current.minute < limit {
+		if current.minute <= limit {
 			// Pick which robot to build next
 			for robotIdx := len(bluePrint.costs) - 1; robotIdx >= 0; robotIdx-- {
 				if robotIdx < len(bluePrint.costs)-1 {
 					robots := current.robots[robotIdx]
-					// timeLeft := limit - current.minute
-					// materials := current.materials[robotIdx]
+					timeLeft := limit - current.minute
+					materials := current.materials[robotIdx]
 					// If we already have enough of robotIdx to build any other robot every minute, don't bother building more.
-					// if robots*timeLeft+materials >= bluePrint.maxResourceCost(robotIdx)*timeLeft {
-					// 	continue
-					// }
-					if robots >= bluePrint.maxResourceCost(robotIdx) {
+					if int16(robots*timeLeft)+materials >= int16(bluePrint.maxResourceCost(robotIdx)*timeLeft) {
 						continue
 					}
+					// if robots >= bluePrint.maxResourceCost(robotIdx) {
+					// 	continue
+					// }
 				}
 				canBuild := true
 				timeToBuild := uint8(0)
@@ -225,15 +227,15 @@ func next(current State, minutes uint8) State {
 }
 
 func (current *State) printState() {
-	fmt.Printf("  Minute: %d: Materials: ", current.minute)
+	fmt.Printf("  Minute: %2d: Materials: ", current.minute)
 	for _, m := range current.materials {
-		fmt.Printf("%d, ", m)
+		fmt.Printf("%2d, ", m)
 	}
 	fmt.Print("Robots: ")
 	for _, r := range current.robots {
-		fmt.Printf("%d, ", r)
+		fmt.Printf("%2d, ", r)
 	}
-	fmt.Printf("Opened: %d", current.opened)
+	fmt.Printf("Opened: %2d", current.opened)
 }
 
 type Node struct {
