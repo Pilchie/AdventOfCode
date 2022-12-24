@@ -48,11 +48,6 @@ type State struct {
 }
 
 func part1(input []string) {
-	path := A_Star(input)
-	fmt.Printf("Shortest path is %d steps\n", len(path)-1)
-}
-
-func A_Star(input []string) []State {
 	board := parseBoard(input)
 
 	fmt.Println("Initial board")
@@ -66,6 +61,37 @@ func A_Star(input []string) []State {
 	start := State{pos: Point{row: -1, col: 0}, boardIdx: 0}
 	goal := State{pos: Point{row: board.size.height, col: board.size.width - 1}}
 
+	path := A_Star(start, goal, boards)
+	fmt.Printf("Shortest path is %d steps\n", len(path)-1)
+}
+
+func part2(input []string) {
+	board := parseBoard(input)
+
+	fmt.Println("Initial board")
+	board.print()
+	boards := make([]Board, lcm(board.size.height, board.size.width))
+	boards[0] = board
+	for i := 1; i < len(boards); i++ {
+		boards[i] = boards[i-1].next()
+	}
+
+	// Cross the first time.
+	start := State{pos: Point{row: -1, col: 0}, boardIdx: 0}
+	goal := State{pos: Point{row: board.size.height, col: board.size.width - 1}}
+
+	path1 := A_Star(start, goal, boards)
+	fmt.Println("Crossed once")
+	path2 := A_Star(path1[len(path1)-1], start, boards)
+	fmt.Println("Crossed back")
+	path3 := A_Star(path2[len(path2)-1], goal, boards)
+	fmt.Println("Crossed again")
+
+	fmt.Printf("It took %d to cross, %d back, %d to cross again. for a total of %d\n", len(path1)-1, len(path2)-1, len(path3)-1, len(path1)+len(path2)+len(path3)-3)
+
+}
+
+func A_Star(start, goal State, boards []Board) []State {
 	// The set of discovered nodes that may need to be (re-)expanded.
 	// Initially, only the start node is known.
 	// This is usually implemented as a min-heap or priority queue rather than a hash-set.
@@ -263,9 +289,6 @@ func (b *Board) print() {
 	}
 	fmt.Println(".#")
 	fmt.Println()
-}
-
-func part2(input []string) {
 }
 
 func lcm(a, b int) int {
