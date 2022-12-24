@@ -6,9 +6,6 @@ import (
 	"log"
 	"math"
 	"os"
-	"time"
-
-	"github.com/edwingeng/deque/v2"
 )
 
 func main() {
@@ -45,94 +42,125 @@ type Board struct {
 	size      Size
 }
 
-type Tuple[T1 any, T2 any] struct {
-	first  T1
-	second T2
-}
-
 type State struct {
 	pos      Point
 	boardIdx int
-	minute   int
-	prev     *State
 }
 
 func part1(input []string) {
+	path := A_Star(input)
+	fmt.Printf("Shortest path is %d steps\n", len(path)-1)
+}
+
+func A_Star(input []string) []State {
 	board := parseBoard(input)
 
 	fmt.Println("Initial board")
 	board.print()
-
 	boards := make([]Board, lcm(board.size.height, board.size.width))
 	boards[0] = board
 	for i := 1; i < len(boards); i++ {
 		boards[i] = boards[i-1].next()
 	}
 
-	size := board.size
-	target := Point{row: size.height, col: size.width - 1}
-	searchSpace := deque.NewDeque[State]()
-	searchSpace.PushBack(State{pos: Point{row: -1, col: 0}, boardIdx: 0, minute: 0, prev: nil})
+	start := State{pos: Point{row: -1, col: 0}, boardIdx: 0}
+	goal := State{pos: Point{row: board.size.height, col: board.size.width - 1}}
 
-	best := math.MaxInt
-	var bestState *State
-	seen := map[Tuple[Point, int]]int{}
+	// The set of discovered nodes that may need to be (re-)expanded.
+	// Initially, only the start node is known.
+	// This is usually implemented as a min-heap or priority queue rather than a hash-set.
+	openSet := []State{start}
 
-	t0 := time.Now()
+	// For node n, cameFrom[n] is the node immediately preceding it on the cheapest path from start
+	// to n currently known.
+	cameFrom := map[State]State{}
 
-	for !searchSpace.IsEmpty() {
-		current := searchSpace.PopFront()
-		if current.pos == target && current.minute < best {
-			best = current.minute
-			bestState = &current
-			continue
+	// For node n, gScore[n] is the cost of the cheapest path from start to n currently known.
+	gScore := map[State]int{}
+	gScore[start] = 0
+
+	// For node n, fScore[n] := gScore[n] + h(n). fScore[n] represents our current best guess as to
+	// how cheap a path could be from start to finish if it goes through n.
+	fScore := map[State]int{}
+	fScore[start] = h(start, goal)
+
+	for len(openSet) > 0 {
+
+		// This operation can occur in O(Log(N)) time if openSet is a min-heap or a priority queue
+		var current State
+		var minScore = math.MaxInt
+		for n := range openSet {
+			if s, ok := fScore[openSet[n]]; ok {
+				if s < minScore {
+					current = openSet[n]
+					minScore = s
+				}
+			}
 		}
 
-		if time.Since(t0).Milliseconds() >= 2000 {
-			t0 = time.Now()
-			fmt.Printf("  Minute: %2d, at (r:%2d, c:%2d), %10d states left\n", current.minute, current.pos.row, current.pos.col, searchSpace.Len())
+		if current.pos == goal.pos {
+			return reconstruct_path(cameFrom, current)
 		}
 
-		cacheEntry := Tuple[Point, int]{first: current.pos, second: current.boardIdx}
-		if v, ok := seen[cacheEntry]; ok && v < current.minute {
-			continue
-		}
-		seen[cacheEntry] = current.minute
+		openSet = remove(openSet, current)
 
-		nextBoardIdx := (current.boardIdx + 1) % len(boards)
-		nextBoard := boards[nextBoardIdx]
+		//fmt.Printf("Trying current = Row:%d, Col:%d\n", current.row, current.col)
+		neighbors := neighbors(current, boards)
+		for n := range neighbors {
+			neighbor := neighbors[n]
+			// d(current,neighbor) is the weight of the edge from current to neighbor
+			// tentative_gScore is the distance from start to the neighbor through current
+			gcurrent, ok := gScore[current]
+			if !ok {
+				gcurrent = math.MaxInt
+			}
+			tentative_gScore := gcurrent + d(current, neighbor)
 
-		below := Point{row: current.pos.row + 1, col: current.pos.col}
-		if nextBoard.unoccupied(below) {
-			searchSpace.PushFront(next(current, below, nextBoardIdx))
-		}
-		right := Point{row: current.pos.row, col: current.pos.col + 1}
-		if nextBoard.unoccupied(right) {
-			searchSpace.PushFront(next(current, right, nextBoardIdx))
-		}
-		if nextBoard.unoccupied(current.pos) {
-			searchSpace.PushBack(next(current, current.pos, nextBoardIdx))
-		}
-		left := Point{row: current.pos.row, col: current.pos.col - 1}
-		if nextBoard.unoccupied(left) {
-			searchSpace.PushBack(next(current, left, nextBoardIdx))
-		}
-		above := Point{row: current.pos.row - 1, col: current.pos.col}
-		if nextBoard.unoccupied(above) {
-			searchSpace.PushBack(next(current, above, nextBoardIdx))
+			gneighbor, ok := gScore[neighbor]
+			if !ok {
+				gneighbor = math.MaxInt
+			}
+
+			//fmt.Printf(" Considering neighbor r:%d,c:%d, with tentative_gScore %d and gneighbor %d\n", neighbor.row, neighbor.col, tentative_gScore, gneighbor)
+			if tentative_gScore < gneighbor {
+				// This path to neighbor is better than any previous one. Record it!
+				cameFrom[neighbor] = current
+				gScore[neighbor] = tentative_gScore
+				fScore[neighbor] = tentative_gScore + h(neighbor, goal)
+				if !contains(openSet, neighbor) {
+					openSet = append(openSet, neighbor)
+				}
+			}
 		}
 	}
 
-	fmt.Println("Final path was:")
-	for cur := bestState; cur != nil; cur = cur.prev {
-		fmt.Printf("Pos (r:%2d, c:%2d), boardIdx: %2d, minute: %2d\n", cur.pos.row, cur.pos.col, cur.boardIdx, cur.minute)
-	}
+	return openSet
+}
 
-	fmt.Printf("Shortest path is %d steps\n", best)
+func h(s1, s2 State) int {
+	return int(math.Abs(float64(s2.pos.row-s1.pos.row)) + math.Abs(float64(s2.pos.col-s1.pos.col)))
+}
+
+func d(s1, s2 State) int {
+	return 1
+}
+
+func reconstruct_path(cameFrom map[State]State, current State) []State {
+	total_path := []State{current}
+	c := current
+	ok := false
+	for {
+		c, ok = cameFrom[c]
+		if !ok {
+			break
+		}
+		total_path = append([]State{c}, total_path...)
+	}
+	return total_path
 }
 
 func next(current State, pos Point, nextBoardIdx int) State {
-	return State{pos: pos, boardIdx: nextBoardIdx, minute: current.minute + 1, prev: &current}
+	return State{pos: pos, boardIdx: nextBoardIdx}
 }
 
 func parseBoard(input []string) Board {
@@ -254,4 +282,55 @@ func gcd(a, b int) int {
 	}
 
 	return gcd(b, a%b)
+}
+
+func remove(set []State, s State) []State {
+	res := []State{}
+	for i := range set {
+		if set[i] != s {
+			res = append(res, set[i])
+		}
+	}
+
+	return res
+}
+
+func contains(set []State, s State) bool {
+	return indexof(set, s) >= 0
+}
+
+func indexof(set []State, s State) int {
+	for i := range set {
+		if set[i] == s {
+			return i
+		}
+	}
+	return -1
+}
+
+func neighbors(current State, boards []Board) []State {
+	res := []State{}
+	nextBoardIdx := (current.boardIdx + 1) % len(boards)
+	nextBoard := boards[nextBoardIdx]
+
+	below := Point{row: current.pos.row + 1, col: current.pos.col}
+	if nextBoard.unoccupied(below) {
+		res = append(res, next(current, below, nextBoardIdx))
+	}
+	right := Point{row: current.pos.row, col: current.pos.col + 1}
+	if nextBoard.unoccupied(right) {
+		res = append(res, next(current, right, nextBoardIdx))
+	}
+	if nextBoard.unoccupied(current.pos) {
+		res = append(res, next(current, current.pos, nextBoardIdx))
+	}
+	left := Point{row: current.pos.row, col: current.pos.col - 1}
+	if nextBoard.unoccupied(left) {
+		res = append(res, next(current, left, nextBoardIdx))
+	}
+	above := Point{row: current.pos.row - 1, col: current.pos.col}
+	if nextBoard.unoccupied(above) {
+		res = append(res, next(current, above, nextBoardIdx))
+	}
+	return res
 }
