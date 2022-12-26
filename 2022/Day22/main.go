@@ -65,12 +65,12 @@ func part2(input []string) {
 
 	startPoint := Point{0, 0}
 
-	for !board.tiles[0][0][startPoint.col] {
+	for !board.tiles[1][0][startPoint.col] {
 		startPoint.col++
 	}
 	state := State2{
 		location: startPoint,
-		face:     1,
+		face:     2,
 		rowDelta: 0,
 		colDelta: 1,
 	}
@@ -259,17 +259,17 @@ func parseInput2(input []string) (Board2, []string) {
 		dimensions: len(input[0]) / 3,
 	}
 
-	board.tiles[0] = parseFace(input, 0, 2*board.dimensions, board.dimensions)
-	board.tiles[1] = parseFace(input, board.dimensions, 0, board.dimensions)
-	board.tiles[2] = parseFace(input, board.dimensions, board.dimensions, board.dimensions)
-	board.tiles[3] = parseFace(input, board.dimensions, 2*board.dimensions, board.dimensions)
-	board.tiles[4] = parseFace(input, 2*board.dimensions, 2*board.dimensions, board.dimensions)
-	board.tiles[5] = parseFace(input, 2*board.dimensions, 3*board.dimensions, board.dimensions)
+	board.tiles[0] = parseFace(input, board.dimensions, board.dimensions, board.dimensions)
+	board.tiles[1] = parseFace(input, 0, board.dimensions, board.dimensions)
+	board.tiles[2] = parseFace(input, 0, 2*board.dimensions, board.dimensions)
+	board.tiles[3] = parseFace(input, 2*board.dimensions, board.dimensions, board.dimensions)
+	board.tiles[4] = parseFace(input, 2*board.dimensions, 0, board.dimensions)
+	board.tiles[5] = parseFace(input, 3*board.dimensions, 0, board.dimensions)
 
 	directions := []string{}
 
 	start := 0
-	directionLine := input[3*board.dimensions+1]
+	directionLine := input[4*board.dimensions+1]
 	for start < len(directionLine) {
 		dir, s := extractpart(directionLine, start)
 		directions = append(directions, dir)
@@ -352,47 +352,82 @@ func (b *Board2) transition(state State2) State2 {
 			res.face = 4
 			res.location.row = 0
 		} else if state.rowDelta < 0 {
-			res.face = 5
+			res.face = 2
 			res.location.row = b.dimensions - 1
 		} else if state.colDelta < 0 {
-			res.face = 3
+			res.face = 5
 			res.location.row = 0
 			res.location.col = state.location.row
 			res.rowDelta = 1
 			res.colDelta = 0
 		} else if state.colDelta > 0 {
-			res.face = 6
-			res.location.col = b.dimensions - 1
-			res.colDelta = -1
+			res.face = 3
+			res.location.row = b.dimensions - 1
+			res.location.col = state.location.row
+			res.colDelta = 0
+			res.rowDelta = -1
 		}
 	case 2:
 		if state.rowDelta > 0 {
-			res.face = 5
-			res.location.row = b.dimensions - 1
-			res.location.col = b.dimensions - state.location.col - 1
-			res.rowDelta = -1
-		} else if state.rowDelta < 0 {
 			res.face = 1
 			res.location.row = 0
-			res.location.col = b.dimensions - state.location.col - 1
-			res.rowDelta = 1
-		} else if state.colDelta < 0 {
+		} else if state.rowDelta < 0 {
 			res.face = 6
-			res.location.row = b.dimensions - 1
-			res.location.col = b.dimensions - state.location.col - 1
-			res.rowDelta = -1
-			res.colDelta = 0
+			res.location.row = state.location.col
+			res.location.col = 0
+			res.colDelta = 1
+			res.rowDelta = 0
+		} else if state.colDelta < 0 {
+			res.face = 5
+			res.location.row = b.dimensions - state.location.row - 1
+			res.location.col = 0
+			res.colDelta = 1
 		} else if state.colDelta > 0 {
 			res.face = 3
 			res.location.col = 0
 		}
 	case 3:
 		if state.rowDelta > 0 {
-			res.face = 5
-			res.location.row = b.dimensions - state.location.col - 1
-			res.location.col = 0
+			res.face = 1
+			res.location.row = state.location.col
+			res.location.col = b.dimensions - 1
 			res.rowDelta = 0
-			res.colDelta = 1
+			res.colDelta = -1
+		} else if state.rowDelta < 0 {
+			res.face = 6
+			res.location.row = b.dimensions - 1
+		} else if state.colDelta < 0 {
+			res.face = 2
+			res.location.col = b.dimensions - 1
+		} else if state.colDelta > 0 {
+			res.face = 4
+			res.location.row = b.dimensions - state.location.row - 1
+			res.location.col = b.dimensions - 1
+			res.colDelta = -1
+		}
+	case 4:
+		if state.rowDelta > 0 {
+			res.face = 6
+			res.location.row = state.location.col
+			res.location.col = b.dimensions - 1
+			res.rowDelta = 0
+			res.colDelta = -1
+		} else if state.rowDelta < 0 {
+			res.face = 1
+			res.location.row = b.dimensions - 1
+		} else if state.colDelta < 0 {
+			res.face = 5
+			res.location.col = b.dimensions - 1
+		} else if state.colDelta > 0 {
+			res.face = 3
+			res.location.row = b.dimensions - state.location.row - 1
+			res.location.col = b.dimensions - 1
+			res.colDelta = -1
+		}
+	case 5:
+		if state.rowDelta > 0 {
+			res.face = 6
+			res.location.row = 0
 		} else if state.rowDelta < 0 {
 			res.face = 1
 			res.location.row = state.location.col
@@ -401,67 +436,33 @@ func (b *Board2) transition(state State2) State2 {
 			res.colDelta = 1
 		} else if state.colDelta < 0 {
 			res.face = 2
-			res.location.col = b.dimensions - 1
-		} else if state.colDelta > 0 {
-			res.face = 4
+			res.location.row = b.dimensions - state.location.row - 1
 			res.location.col = 0
-		}
-	case 4:
-		if state.rowDelta > 0 {
-			res.face = 5
-			res.location.row = 0
-		} else if state.rowDelta < 0 {
-			res.face = 1
-			res.location.row = b.dimensions - 1
-		} else if state.colDelta < 0 {
-			res.face = 3
-			res.location.col = b.dimensions - 1
+			res.rowDelta = 0
+			res.colDelta = 1
 		} else if state.colDelta > 0 {
-			res.face = 6
-			res.location.row = 0
-			res.location.col = b.dimensions - state.location.row - 1
-			res.rowDelta = 1
-			res.colDelta = 0
-		}
-	case 5:
-		if state.rowDelta > 0 {
-			res.face = 2
-			res.location.row = b.dimensions - 1
-			res.location.col = b.dimensions - state.location.col - 1
-			res.rowDelta = -1
-		} else if state.rowDelta < 0 {
 			res.face = 4
-			res.location.row = b.dimensions - 1
-		} else if state.colDelta < 0 {
-			res.face = 3
-			res.location.row = b.dimensions - 1
-			res.location.col = b.dimensions - state.location.row - 1
-			res.rowDelta = -1
-			res.colDelta = 0
-		} else if state.colDelta > 0 {
-			res.face = 6
 			res.location.col = 0
 		}
 	case 6:
 		if state.rowDelta > 0 {
-			res.face = 2
-			res.location.row = b.dimensions - state.location.col - 1
-			res.location.col = 0
-			res.rowDelta = 0
-			res.colDelta = 1
+			res.face = 3
+			res.location.row = 0
 		} else if state.rowDelta < 0 {
-			res.face = 4
-			res.location.row = b.dimensions - state.location.col - 1
-			res.location.col = b.dimensions - 1
-			res.rowDelta = 0
-			res.colDelta = -1
-		} else if state.colDelta < 0 {
 			res.face = 5
-			res.location.col = b.dimensions - 1
+			res.location.row = b.dimensions - 1
+		} else if state.colDelta < 0 {
+			res.face = 2
+			res.location.row = 0
+			res.location.col = state.location.row
+			res.rowDelta = 1
+			res.colDelta = 0
 		} else if state.colDelta > 0 {
-			res.face = 1
-			res.location.col = b.dimensions - 1
-			res.colDelta = -1
+			res.face = 4
+			res.location.row = b.dimensions - 1
+			res.location.col = state.location.row
+			res.rowDelta = -1
+			res.colDelta = 0
 		}
 	}
 
@@ -476,17 +477,17 @@ func (b *Board2) transition(state State2) State2 {
 func (b *Board2) mapLocation(face int, locationOnFace Point) Point {
 	switch face {
 	case 1:
-		return Point{row: locationOnFace.row + 1, col: locationOnFace.col + 2*b.dimensions + 1}
-	case 2:
-		return Point{row: locationOnFace.row + b.dimensions + 1, col: locationOnFace.col + 1}
-	case 3:
 		return Point{row: locationOnFace.row + b.dimensions + 1, col: locationOnFace.col + b.dimensions + 1}
+	case 2:
+		return Point{row: locationOnFace.row + 1, col: locationOnFace.col + b.dimensions + 1}
+	case 3:
+		return Point{row: locationOnFace.row + 1, col: locationOnFace.col + 2*b.dimensions + 1}
 	case 4:
-		return Point{row: locationOnFace.row + b.dimensions + 1, col: locationOnFace.col + 2*b.dimensions + 1}
+		return Point{row: locationOnFace.row + 2*b.dimensions + 1, col: locationOnFace.col + b.dimensions + 1}
 	case 5:
-		return Point{row: locationOnFace.row + 2*b.dimensions + 1, col: locationOnFace.col + 2*b.dimensions + 1}
+		return Point{row: locationOnFace.row + 2*b.dimensions + 1, col: locationOnFace.col + 1}
 	case 6:
-		return Point{row: locationOnFace.row + 2*b.dimensions + 1, col: locationOnFace.col + 3*b.dimensions + 1}
+		return Point{row: locationOnFace.row + 3*b.dimensions + 1, col: locationOnFace.col + 1}
 	default:
 		log.Fatalf("Unexpected face: %d\n", face)
 		return locationOnFace
