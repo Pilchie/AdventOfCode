@@ -19,19 +19,18 @@ func main() {
 	scanner := bufio.NewScanner(f)
 	scanner.Scan()
 	jets := scanner.Text()
+	//part1(jets)
+	part2(jets)
+}
 
-	targetCount := 1000000000000
+func part1(jets string) {
+	res := dropUntil(2022, jets)
+	fmt.Printf("Highest rock is at %d\n", res)
+}
 
-	repeat := 5 * len(jets)
-	remainder := targetCount % repeat
-	repetitions := targetCount / repeat
-	base := dropUntil(repeat, jets)
-	rest := dropUntil(remainder, jets)
-	fmt.Printf("Highest rock is at %d (base: %d, repetitions: %d, rest: %d)\n", base*repetitions+rest, base, repetitions, rest)
-
-	// res := dropUntil(targetCount, jets)
-	// fmt.Printf("Highest rock is at %d\n", res)
-
+func part2(jets string) {
+	res := dropUntil(1000000000000, jets)
+	fmt.Printf("Highest rock is at %d\n", res)
 }
 
 func dropUntil(steps int, jets string) int {
@@ -52,21 +51,47 @@ func dropUntil(steps int, jets string) int {
 	shapes := parseShapes(shapePoints)
 	currentShapeAndLocation := ShapeAndLoc{shape: &shapes[shapeIdx], location: Point{x: 2, y: 3}}
 
+	seenStates := map[StateKey]StateValue{}
+	cycleHeight := 0
+	cycleLength := 0
+	streakCount := 0
+	repetitions := 0
+
+	verifyCycle := lcm(len(shapes), len(jets))
+
 	t0 := time.Now()
 	for countStoppedRocks < steps {
 		done, newShapeAndLocation := fall(&stoppedRocks, jets[jetIdx], currentShapeAndLocation)
 		if done {
 			countStoppedRocks++
 			stoppedRocks = append(stoppedRocks, newShapeAndLocation)
-			length := len(stoppedRocks)
-			if length > 1000 {
-				stoppedRocks = stoppedRocks[length-100:]
+			if len(stoppedRocks)%1000 == 0 {
+				stoppedRocks = stoppedRocks[len(stoppedRocks)-500:]
 			}
 			highestSoFar = highest(&stoppedRocks)
-			if countStoppedRocks%10000 == 0 {
-				//printcave(stoppedRocks, newShapeAndLocation, highestSoFar-100)
-				fmt.Printf("Done %d rocks in %v\n", countStoppedRocks, time.Since(t0))
+
+			stateKey := StateKey{shapeIdx: shapeIdx, jetIdx: jetIdx}
+			if stateValue, ok := seenStates[stateKey]; ok {
+				currentHeight := highestSoFar - stateValue.height
+				currentLength := countStoppedRocks - stateValue.rockCount
+				if currentHeight != cycleHeight || currentLength != cycleLength {
+					cycleHeight = currentHeight
+					cycleLength = currentLength
+					streakCount = 0
+				} else {
+					streakCount++
+				}
+				if streakCount%1000 == 0 {
+					fmt.Printf("Completed streak of length: %d (time: %v)\n", streakCount, time.Since(t0))
+					t0 = time.Now()
+				}
+				if streakCount == verifyCycle {
+					repetitions = (steps - countStoppedRocks) / cycleLength
+					steps -= repetitions * cycleLength
+					fmt.Printf("At step %d, continuing for %d more, then repeating %d times\n", countStoppedRocks, steps-countStoppedRocks, repetitions)
+				}
 			}
+			seenStates[stateKey] = StateValue{rockCount: countStoppedRocks, height: highestSoFar}
 			shapeIdx = increment(shapeIdx, len(shapes))
 			currentShapeAndLocation = ShapeAndLoc{shape: &shapes[shapeIdx], location: Point{x: 2, y: highestSoFar + 3}}
 
@@ -88,7 +113,15 @@ func dropUntil(steps int, jets string) int {
 
 	res := highest(&stoppedRocks)
 	//printcave(stoppedRocks, currentShapeAndLocation, 0)
-	return res
+	return res + repetitions*cycleHeight
+}
+
+type StateKey struct {
+	shapeIdx, jetIdx int
+}
+
+type StateValue struct {
+	rockCount, height int
 }
 
 type Shape struct {
@@ -272,4 +305,20 @@ func increment(i int, limit int) int {
 		i = 0
 	}
 	return i
+}
+
+func lcm(a, b int) int {
+	return a * b / gcd(a, b)
+}
+
+func gcd(a, b int) int {
+	if b > a {
+		return gcd(b, a)
+	}
+
+	if b == 0 {
+		return a
+	}
+
+	return gcd(b, a%b)
 }
