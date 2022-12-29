@@ -54,9 +54,9 @@ func main() {
 		}
 	}
 
-	//pressure, path := part1(valves, openValveMask, 30, valveIdxToName)
-	//fmt.Printf("Part 1: Released %d pressure, via path %s\n", pressure, path)
-	pressure := part2(valves, openValveMask, 26)
+	pressure, path := part1(valves, openValveMask, 30, valveIdxToName)
+	fmt.Printf("Part 1: Released %d pressure, via path %s\n", pressure, path)
+	pressure = part2(valves, openValveMask, 26)
 	fmt.Printf("Part2: Released %d pressure\n", pressure)
 
 	if err := scanner.Err(); err != nil {
@@ -130,7 +130,14 @@ func part1(valves []Valve, openValveMask map[uint8]uint16, limit int, valveIdxTo
 	}
 	fmt.Printf("Initial Opens is %x\n", initialOpens)
 
-	searchSpace := []State{{position: 0, minute: 0, openState: initialOpens, path: "AA"}}
+	valveAA := uint8(0)
+	for _, v := range valves {
+		if v.name == "AA" {
+			valveAA = v.id
+			break
+		}
+	}
+	searchSpace := []State{{position: valveAA, minute: 0, openState: initialOpens, path: "AA"}}
 
 	seen := make(map[uint8]map[uint16]int)
 	prevMinute := 0
@@ -162,7 +169,7 @@ nextState:
 			seen[currentState.position] = make(map[uint16]int)
 		} else {
 			for key, val := range opens {
-				if val > currentState.totalFlow {
+				if val >= currentState.totalFlow {
 					// If we've seen the same *or more* valves open, we don't need to continue down this path
 					if key&currentState.openState == currentState.openState {
 						continue nextState
@@ -233,8 +240,18 @@ func part2(valves []Valve, openValveMask map[uint8]uint16, limit int) int {
 		initialOpens = initialOpens | (1 << i)
 	}
 
+	fmt.Printf("Initial opens are: %x\n", initialOpens)
+
+	valveAA := uint16(0)
+	for _, v := range valves {
+		if v.name == "AA" {
+			valveAA = uint16(v.id)
+			break
+		}
+	}
+
 	searchSpace := Queue{}
-	searchSpace.Push(State2{positions: 0, minute: 0, openState: initialOpens})
+	searchSpace.Push(State2{positions: valveAA<<8 | valveAA, minute: 0, openState: initialOpens})
 
 	seen := make(map[uint16]map[uint16]int)
 	t0 := time.Now()
@@ -254,19 +271,41 @@ func part2(valves []Valve, openValveMask map[uint8]uint16, limit int) int {
 
 	FloydWarshallWithPathReconstruction(dist, next, valves)
 
+	for _, v := range valves {
+		if v.flowRate > 0 {
+			path := shortestPath(uint8(valveAA), v.id, next)
+			fmt.Printf("Shortest path from 'AA' to '%s' is %2d: %s", v.name, len(path), valves[path[0]].name)
+			for _, p := range path[1:] {
+				fmt.Printf("->%s", valves[p].name)
+			}
+			fmt.Println()
+		}
+	}
+
+	lastLen := 0
+	lastProcessed := 0
+	completed := 0
+	skipped := 0
+
 nextState:
 	for !searchSpace.IsEmpty() {
 		currentState := searchSpace.Pop()
 
 		if time.Since(tLast).Milliseconds() >= 5000 {
-			fmt.Printf("Processing minute %2d, best: %4d, with %10d items, seen %10d, processed: %10d. Elapsed time: %v\n", currentState.minute, largestFlow, searchSpace.Len(), count2(seen), searchSpace.processed, time.Since(t0))
+			len := searchSpace.Len()
+			fmt.Printf("Processing minute %2d, open: %x, best: %4d, seen %6d, completed: %10d, skipped: %10d, remaining %10d (delta: %10d), processed: %10d (delta: %10d). Elapsed time: %v\n",
+				currentState.minute, currentState.openState, largestFlow, count2(seen), completed, skipped, len, len-lastLen, searchSpace.processed, searchSpace.processed-lastProcessed, time.Since(t0))
 			tLast = time.Now()
+			lastLen = len
+			lastProcessed = searchSpace.processed
+		}
+
+		if currentState.totalFlow > largestFlow {
+			largestFlow = currentState.totalFlow
 		}
 
 		if int(currentState.minute) >= limit {
-			if currentState.totalFlow > largestFlow {
-				largestFlow = currentState.totalFlow
-			}
+			completed++
 			continue nextState
 		}
 
@@ -274,9 +313,10 @@ nextState:
 			seen[currentState.positions] = make(map[uint16]int)
 		} else {
 			for key, flow := range opens {
-				if flow > currentState.totalFlow {
+				if flow >= currentState.totalFlow {
 					// If we've seen the same *or more* valves open, we don't need to continue down this path
 					if key&currentState.openState == currentState.openState {
+						skipped++
 						continue nextState
 					}
 				}
@@ -351,34 +391,38 @@ func moves(position uint8, openState uint16, valves []Valve, openValveMask map[u
 		res = append(res, Move{position: position, newOpen: position, addFlow: valves[position].flowRate})
 	}
 
-	paths := []Path{}
+	// paths := []Path{}
 
-	// Calculate the expected value of all closed valves, and go to the highest one.
-	for did, valve := range valves {
-		if openState&openValveMask[uint8(did)] == 0 && valve.flowRate > 0 {
-			path := shortestPath(position, valve.id, next)
-			expectedValue := (remaining - len(path)) * valve.flowRate
-			if expectedValue > 0 && len(path) > 1 {
-				paths = append(paths, Path{expected: expectedValue, steps: path})
-			}
-		}
-	}
+	// // Calculate the expected value of all closed valves, and go to the highest one.
+	// for _, valve := range valves {
+	// 	if openState&openValveMask[uint8(valve.id)] == 0 && valve.flowRate > 0 {
+	// 		path := shortestPath(position, valve.id, next)
+	// 		expectedValue := (remaining - len(path)) * valve.flowRate
+	// 		if expectedValue > 0 && len(path) > 1 {
+	// 			paths = append(paths, Path{expected: expectedValue, steps: path})
+	// 		}
+	// 	}
+	// }
 
-	sort.Slice(paths, func(i, j int) bool {
-		// We want to sort from largest expected value to smallest
-		return paths[i].expected > paths[j].expected
-	})
+	// if len(paths) > 0 {
+	// 	sort.Slice(paths, func(i, j int) bool {
+	// 		// We want to sort from largest expected value to smallest
+	// 		return paths[i].expected > paths[j].expected
+	// 	})
+	// 	added := map[uint8]bool{}
+	// 	if skipTop {
+	// 		paths = paths[1:]
+	// 	}
 
-	added := map[uint8]bool{}
-	if skipTop {
-		paths = paths[1:]
-	}
-
-	for _, p := range paths {
-		if _, ok := added[p.steps[1]]; !ok {
-			res = append(res, Move{position: p.steps[1], newOpen: 0xFF})
-			added[p.steps[0]] = true
-		}
+	// 	for _, p := range paths {
+	// 		if _, ok := added[p.steps[1]]; !ok {
+	// 			res = append(res, Move{position: p.steps[1], newOpen: 0xFF})
+	// 			added[p.steps[0]] = true
+	// 		}
+	// 	}
+	// }
+	for _, v := range valves[position].destinations {
+		res = append(res, Move{position: v, newOpen: 0xFF})
 	}
 	return res
 }
@@ -448,7 +492,7 @@ type Queue struct {
 	head *Node
 	tail *Node
 
-	processed int64
+	processed int
 }
 
 func (q *Queue) Push(s State2) {
