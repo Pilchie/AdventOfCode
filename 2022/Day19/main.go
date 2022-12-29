@@ -116,10 +116,21 @@ type State struct {
 	prev      *State
 }
 
-type Cache struct {
-	minute    uint8
-	materials [4]int16
-	robots    [4]uint8
+type CacheKey struct {
+	materials uint64
+	robots    uint32
+}
+
+func constructCacheKey(materials [4]int16, robots [4]uint8) CacheKey {
+	mkey := uint64(0)
+	for i, m := range materials {
+		mkey |= uint64(m) << (i * 16)
+	}
+	rkey := uint32(0)
+	for i, r := range robots {
+		rkey |= uint32(r) << (i * 8)
+	}
+	return CacheKey{materials: mkey, robots: rkey}
 }
 
 func maxGeodes(bluePrint BluePrint, limit uint8) uint8 {
@@ -127,23 +138,47 @@ func maxGeodes(bluePrint BluePrint, limit uint8) uint8 {
 
 	searchSpace := Queue{}
 	searchSpace.push(best)
-	seen := map[Cache]uint8{}
+	seen := map[CacheKey][]uint8{}
 	skipped := 0
+	t0 := time.Now()
+	tLast := time.Now()
+	lastProcessed := int64(0)
+	lastLength := 0
+	lastSkipped := 0
+	lastSeen := 0
+
+nextState:
 	for !searchSpace.isEmpty() {
 		current := searchSpace.pop()
 
-		cacheEntry := Cache{current.minute, current.materials, current.robots}
-		if val, ok := seen[cacheEntry]; ok && val >= current.opened {
-			skipped++
-			continue
+		cacheEntry := constructCacheKey(current.materials, current.robots)
+		if val, ok := seen[cacheEntry]; ok {
+			// Note this is < because we are storing items in the value before them, since our minute is 1-based.
+			for m := uint8(0); m < current.minute; m++ {
+				if val[m] >= current.opened {
+					skipped++
+					continue nextState
+				}
+			}
+		} else {
+			seen[cacheEntry] = make([]uint8, limit+1)
 		}
-		seen[cacheEntry] = current.opened
+		seen[cacheEntry][current.minute-1] = current.opened
 
 		if current.opened > best.opened {
-			fmt.Print("  New best -")
-			current.printState()
-			fmt.Printf(" - space %9d, seen %9d, skipped %9d, processed %12d\n", searchSpace.length(), len(seen), skipped, searchSpace.processed)
 			best = current
+		}
+
+		if time.Since(tLast).Milliseconds() > 5000 {
+			length := searchSpace.length()
+			fmt.Printf("Best %3d - space %9d(%9d), seen %9d(%9d), skipped %9d(%9d), processed %12d(%9d) - Current: ", best.opened, length, length-lastLength, len(seen), len(seen)-lastSeen, skipped, skipped-lastSkipped, searchSpace.processed, searchSpace.processed-lastProcessed)
+			current.printState()
+			fmt.Println(", elapsed: ", time.Since(t0))
+			tLast = time.Now()
+			lastProcessed = searchSpace.processed
+			lastLength = length
+			lastSkipped = skipped
+			lastSeen = len(seen)
 		}
 
 		if current.minute > limit {
@@ -162,9 +197,6 @@ func maxGeodes(bluePrint BluePrint, limit uint8) uint8 {
 					if int16(robots*timeLeft)+materials >= int16(bluePrint.maxResourceCost(robotIdx)*timeLeft) {
 						continue
 					}
-					// if robots >= bluePrint.maxResourceCost(robotIdx) {
-					// 	continue
-					// }
 				}
 				canBuild := true
 				timeToBuild := uint8(0)
@@ -217,7 +249,7 @@ func maxGeodes(bluePrint BluePrint, limit uint8) uint8 {
 
 func next(current State, minutes uint8) State {
 	next := current
-	next.prev = &current
+	//next.prev = &current
 	next.minute += minutes
 	next.opened = current.opened + minutes*current.robots[3]
 	for i := 0; i < len(current.robots); i++ {
@@ -227,7 +259,7 @@ func next(current State, minutes uint8) State {
 }
 
 func (current *State) printState() {
-	fmt.Printf("  Minute: %2d: Materials: ", current.minute)
+	fmt.Printf("Minute: %2d, Opened: %2d, Materials: ", current.minute, current.opened)
 	for _, m := range current.materials {
 		fmt.Printf("%2d, ", m)
 	}
@@ -235,11 +267,11 @@ func (current *State) printState() {
 	for _, r := range current.robots {
 		fmt.Printf("%2d, ", r)
 	}
-	fmt.Printf("Opened: %2d", current.opened)
+
 }
 
 type Node struct {
-	elements [10000]State
+	elements [100000]State
 	next     *Node
 
 	start int
@@ -263,6 +295,7 @@ func (q *Queue) push(s State) {
 			start: 0,
 			end:   1,
 		}
+		n.elements[0] = s
 		q.tail.next = &n
 		q.tail = &n
 	} else {
