@@ -169,7 +169,7 @@ nextState:
 			best = current
 		}
 
-		if time.Since(tLast).Milliseconds() > 5000 {
+		if time.Since(tLast).Milliseconds() > 1000 {
 			length := searchSpace.length()
 			fmt.Printf("Best %3d - space %9d(%9d), seen %9d(%9d), skipped %9d(%9d), processed %12d(%9d) - Current: ", best.opened, length, length-lastLength, len(seen), len(seen)-lastSeen, skipped, skipped-lastSkipped, searchSpace.processed, searchSpace.processed-lastProcessed)
 			current.printState()
@@ -186,7 +186,8 @@ nextState:
 		}
 
 		// If we're in the last minute, there is no point building another robot, since it won't have time do anything.
-		if current.minute <= limit {
+		builtAny := false
+		if current.minute < limit {
 			// Pick which robot to build next
 			for robotIdx := len(bluePrint.costs) - 1; robotIdx >= 0; robotIdx-- {
 				if robotIdx < len(bluePrint.costs)-1 {
@@ -194,7 +195,7 @@ nextState:
 					timeLeft := limit - current.minute
 					materials := current.materials[robotIdx]
 					// If we already have enough of robotIdx to build any other robot every minute, don't bother building more.
-					if int16(robots*timeLeft)+materials >= int16(bluePrint.maxResourceCost(robotIdx)*timeLeft) {
+					if int16(robots*timeLeft)+materials >= int16(bluePrint.maxResourceCost(robotIdx))*int16(timeLeft) {
 						continue
 					}
 				}
@@ -226,12 +227,15 @@ nextState:
 						}
 					}
 					searchSpace.push(n)
+					builtAny = true
 				}
 			}
 		}
 
-		// There is always an option where we don't build anything.
-		searchSpace.push(next(current, 1))
+		if !builtAny {
+			// There is always an option where we don't build anything.
+			searchSpace.push(next(current, 1))
+		}
 	}
 
 	cur := &best
@@ -249,7 +253,7 @@ nextState:
 
 func next(current State, minutes uint8) State {
 	next := current
-	//next.prev = &current
+	next.prev = &current
 	next.minute += minutes
 	next.opened = current.opened + minutes*current.robots[3]
 	for i := 0; i < len(current.robots); i++ {
