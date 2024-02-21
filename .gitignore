@@ -433,3 +433,7 @@ $RECYCLE.BIN/
 !.vscode/extensions.json
 
 .venv/
+
+
+## rust targets
+target/
