@@ -50,4 +50,5 @@ members = [
     "2021/19/beacon_scanner",
     "2021/20/trench_map",
     "2021/21/dirac_dice",
+    "2023/1/calibration",
 ]
