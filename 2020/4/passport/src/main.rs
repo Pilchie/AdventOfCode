@@ -37,7 +37,7 @@ pub struct Passport {
     hair_color: Option<String>,
     eye_color: Option<String>,
     passport_id: Option<String>,
-    country_id: Option<String>,
+    _country_id: Option<String>, // Uneeded to solve problem
 }
 
 impl Passport {
@@ -92,7 +92,7 @@ impl Passport {
             hair_color: hair_color,
             eye_color: eye_color,
             passport_id: passport_id,
-            country_id: country_id,
+            _country_id: country_id,
         }
     }
 

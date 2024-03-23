@@ -78,7 +78,7 @@ impl Vector {
         })
     }
 
-    fn is_diagonal(self: &Self) -> bool {
+    fn _is_diagonal(self: &Self) -> bool {
         self.start.x != self.end.x && self.start.y != self.end.y
     }
 

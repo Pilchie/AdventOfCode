@@ -90,7 +90,7 @@ impl GameState {
         self.move_number += 1;
     }
 
-    fn print_state(&self) {
+    fn _print_state(&self) {
         print!("cups: ");
         let mut cup = self.current_cup;
         print!("({})", cup);
@@ -192,7 +192,7 @@ mod tests_part2 {
     #[test]
     fn test() {
         let mut state = GameState::new_part2("389125467");
-        state.print_state();
+        state._print_state();
         for _ in 0..10_000_000 {
             state.play_round();
         }

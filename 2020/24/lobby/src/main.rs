@@ -246,11 +246,11 @@ wseweeenwnesenwwwswnew").black_tiles.len());
             if let Some(e) = expected.next() {
                 match actual.next() {
                     Some(a) => assert_eq!(e, a),
-                    None => assert!(false, format!("expected: '{:?}', actual end", e)),
+                    None => assert!(false, "expected: '{:?}', actual end", e),
                 }
             } else {
                 match actual.next() {
-                    Some (a) => assert!(false, format!("expected end, actual: '{:?}'", a)),
+                    Some (a) => assert!(false, "expected end, actual: '{:?}'", a),
                     None => return,
                 }
             }

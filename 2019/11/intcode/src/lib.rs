@@ -311,6 +311,7 @@ pub trait InputOutputSystem {
     fn get_input(&mut self) -> i64;
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 
