@@ -2061,6 +2061,24 @@
             },
             "args": [],
             "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'gear_ratios'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=gear_ratios",
+                    "--package=gear_ratios"
+                ],
+                "filter": {
+                    "name": "gear_ratios",
+                    "kind": "bin"
+                }
+            },
+            "args": ["test.txt"],
+            "cwd": "${workspaceFolder}/2023/3/gear_ratios"
         }
     ]
 }
