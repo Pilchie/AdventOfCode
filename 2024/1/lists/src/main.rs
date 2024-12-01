@@ -22,10 +22,16 @@ fn main() {
     left.sort();
     right.sort();
 
-    let mut accum = 0;
+    let mut part1 = 0;
     for i in 0..std::cmp::min(left.len(), right.len()) {
-        accum += (left[i] - right[i]).abs();
+        part1 += (left[i] - right[i]).abs();
     }
+    println!("{}", part1);
 
-    println!("{}", accum);
+    let mut part2 = 0;
+    for i in left {
+        // TODO: Make use of the fact that right is sorted
+        part2 += i * right.iter().filter(|&x| *x == i).count() as i32;
+    }
+    println!("{}", part2);
 }
