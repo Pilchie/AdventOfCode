@@ -24,6 +24,9 @@ fn is_safe(report: &str) -> bool {
     for val_str in report.split_whitespace() {
         let val = val_str.parse::<u32>().unwrap();
         if let Some(p) = prev {
+            if ascending.is_none() {
+                ascending = Some(val > p);
+            }
             match ascending {
                 Some(true) => {
                     if val <= p || val - p > 3 {
@@ -35,9 +38,7 @@ fn is_safe(report: &str) -> bool {
                         return false;
                     }
                 }
-                None => {
-                    ascending = Some(val > p);
-                }
+                None => unreachable!(),
             }
         }
         prev = Some(val);
