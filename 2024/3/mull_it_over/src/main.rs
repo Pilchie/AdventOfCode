@@ -7,12 +7,25 @@ fn main() {
     let chars = contents.chars().collect::<Vec<char>>();
     let mut i = 0;
     let mut result = 0;
+    let mut enabled = true;
     while i < chars.len() - 8 {
-        if let Some((val, len)) = parse_mul(&chars, i) {
-            result += val;
-            i += len;
+        if enabled {
+            if let Some((val, len)) = parse_mul(&chars, i) {
+                result += val;
+                i += len;
+            } else if chars[i..i + "don't()".len()] == ['d', 'o', 'n', '\'', 't', '(', ')'] {
+                enabled = false;
+                i += "don't()".len();
+            } else {
+                i += 1;
+            }
         } else {
-            i += 1;
+            if chars[i..i + "do()".len()] == ['d', 'o', '(', ')'] {
+                enabled = true;
+                i += "do()".len();
+            } else {
+                i += 1;
+            }
         }
     }
 
