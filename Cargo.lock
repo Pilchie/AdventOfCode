@@ -46,6 +46,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "ceres_search"
+version = "0.1.0"
+
+[[package]]
 name = "chiton"
 version = "0.1.0"
 
