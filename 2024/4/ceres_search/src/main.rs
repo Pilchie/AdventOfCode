@@ -10,15 +10,26 @@ fn main() {
     let mut count = 0;
     for y in 0..lines.len() {
         for x in 0..lines[y].len() {
-            count += count_at(&lines, "XMAS", x, y);
-            count += count_at(&lines, "SAMX", x, y);
+            count += count_word_at(&lines, "XMAS", x, y);
+            count += count_word_at(&lines, "SAMX", x, y);
         }
     }
 
-    println!("{}", count);
+    println!("XMAS appears {} times", count);
+
+    count = 0;
+    for y in 1..lines.len() - 1 {
+        for x in 1..lines[y].len() - 1 {
+            if matches_xmas(&lines, x, y) {
+                count += 1;
+            }
+        }
+    }
+
+    println!("There are {} X-MASs", count);
 }
 
-fn count_at(lines: &[&str], word: &str, x: usize, y: usize) -> u32 {
+fn count_word_at(lines: &[&str], word: &str, x: usize, y: usize) -> u32 {
     let mut count = 0;
 
     // Check to the right
@@ -32,7 +43,6 @@ fn count_at(lines: &[&str], word: &str, x: usize, y: usize) -> u32 {
         }
         if found {
             count += 1;
-            //println!("Found at {},{} - {} right", y, x, word);
         }
     }
 
@@ -47,7 +57,6 @@ fn count_at(lines: &[&str], word: &str, x: usize, y: usize) -> u32 {
         }
         if found {
             count += 1;
-            //println!("Found at {},{} - {} down", y, x, word);
         }
     }
 
@@ -62,7 +71,6 @@ fn count_at(lines: &[&str], word: &str, x: usize, y: usize) -> u32 {
         }
         if found {
             count += 1;
-            //println!("Found at {},{} - {} diag right", y, x, word);
         }
     }
 
@@ -77,9 +85,28 @@ fn count_at(lines: &[&str], word: &str, x: usize, y: usize) -> u32 {
         }
         if found {
             count += 1;
-            //println!("Found at {},{} - {} diag left", y, x, word);
         }
     }
 
     count
+}
+
+fn matches_xmas(lines: &[&str], x: usize, y: usize) -> bool {
+    if lines[y].bytes().nth(x) == Some(b'A') {
+        if lines[y - 1].bytes().nth(x - 1) == Some(b'M')
+            && lines[y + 1].bytes().nth(x + 1) == Some(b'S')
+            || lines[y - 1].bytes().nth(x - 1) == Some(b'S')
+                && lines[y + 1].bytes().nth(x + 1) == Some(b'M')
+        {
+            if lines[y - 1].bytes().nth(x + 1) == Some(b'M')
+                && lines[y + 1].bytes().nth(x - 1) == Some(b'S')
+                || lines[y - 1].bytes().nth(x + 1) == Some(b'S')
+                    && lines[y + 1].bytes().nth(x - 1) == Some(b'M')
+            {
+                return true;
+            }
+        }
+    }
+
+    false
 }
