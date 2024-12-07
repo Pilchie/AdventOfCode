@@ -4,22 +4,54 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let contents = fs::read_to_string(&args[1]).expect("Something went wrong reading the file");
 
-    let mut count = 0;
-    let (mut guard, map) = Map::parse(&contents);
-    let mut visited = HashSet::new();
-    visited.insert(guard.position);
+    let (guard, map) = Map::parse(&contents);
 
-    println!("starting at {:?}", guard);
-    while map.contains(guard.position) {
-        guard = map.advance(guard);
-        println!("advanced to {:?}", guard);
-        if !visited.contains(&guard.position) {
-            visited.insert(guard.position);
-            count += 1;
+    // Part 1
+    {
+        let mut visited = HashSet::new();
+        let mut count = 0;
+
+        visited.insert(guard.position);
+
+        println!("starting at {:?}", guard);
+        let mut guard = guard.clone();
+        while map.contains(guard.position) {
+            guard = map.advance(&guard);
+            if !visited.contains(&guard.position) {
+                visited.insert(guard.position);
+                count += 1;
+            }
         }
+        println!("Done at {:?} count {}", guard, count);
     }
 
-    println!("Done at {:?} count {}", guard, count);
+    // Part 2
+    let mut obstacles_causing_loops = 0;
+    for y in 0..map.height {
+        for x in 0..map.width {
+            let p = Point::new(x, y);
+            if guard.position != p && !map.obstacles.contains(&p) {
+                let map = map.place_obstacle(&p);
+                let mut guard = guard.clone();
+                let mut visited = HashSet::new();
+                let mut count = 1;
+                while map.contains(guard.position) && !visited.contains(&guard) {
+                    visited.insert(guard.clone());
+                    guard = map.advance(&guard);
+                    count += 1;
+                }
+                if visited.contains(&guard) {
+                    println!("Found loop with obstacle at {:?}, moves: {}", p, count);
+                    obstacles_causing_loops += 1;
+                } else {
+                }
+            }
+        }
+    }
+    println!(
+        "Found {} positions to place an obstacle to cause a loop",
+        obstacles_causing_loops
+    );
 }
 
 #[derive(Clone, Copy, Debug, Default, Hash, Eq, PartialEq)]
@@ -34,7 +66,7 @@ impl Point {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 enum Direction {
     Up,
     Right,
@@ -53,7 +85,7 @@ impl Direction {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct Guard {
     position: Point,
     direction: Direction,
@@ -94,7 +126,13 @@ impl Map {
             height,
         };
 
-        println!("Constructed a {} x {} map with {} obstacles and guard starting at {:?}", width, height, m.obstacles.len(), g);
+        println!(
+            "Constructed a {} x {} map with {} obstacles and guard starting at {:?}",
+            width,
+            height,
+            m.obstacles.len(),
+            g
+        );
 
         (g, m)
     }
@@ -103,7 +141,7 @@ impl Map {
         pos.x >= 0 && pos.y >= 0 && pos.x < self.width && pos.y < self.height
     }
 
-    fn advance(&self, guard: Guard) -> Guard {
+    fn advance(&self, guard: &Guard) -> Guard {
         let newpos = Self::forward(&guard);
         if !self.contains(newpos) {
             return Guard {
@@ -142,6 +180,16 @@ impl Map {
                 x: guard.position.x - 1,
                 y: guard.position.y,
             },
+        }
+    }
+
+    fn place_obstacle(&self, o: &Point) -> Self {
+        let mut obstacles = self.obstacles.clone();
+        obstacles.push(*o);
+        Self {
+            obstacles: obstacles,
+            width: self.width,
+            height: self.height,
         }
     }
 }
