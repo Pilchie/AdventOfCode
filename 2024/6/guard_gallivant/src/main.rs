@@ -1,4 +1,4 @@
-use std::{env, fs};
+use std::{collections::HashSet, env, fs};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -6,16 +6,23 @@ fn main() {
 
     let mut count = 0;
     let (mut guard, map) = Map::parse(&contents);
+    let mut visited = HashSet::new();
+    visited.insert(guard.position);
 
+    println!("starting at {:?}", guard);
     while map.contains(guard.position) {
         guard = map.advance(guard);
-        count += 1;
+        println!("advanced to {:?}", guard);
+        if !visited.contains(&guard.position) {
+            visited.insert(guard.position);
+            count += 1;
+        }
     }
 
-    println!("count {}", count);
+    println!("Done at {:?} count {}", guard, count);
 }
 
-#[derive(Clone, Copy, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Hash, Eq, PartialEq)]
 struct Point {
     pub x: i32,
     pub y: i32,
@@ -27,7 +34,7 @@ impl Point {
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 enum Direction {
     Up,
     Right,
@@ -46,7 +53,7 @@ impl Direction {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct Guard {
     position: Point,
     direction: Direction,
@@ -74,9 +81,8 @@ impl Map {
                     pos = Point::new(width, height);
                 }
                 width += 1;
-
             }
-            height+= 1;
+            height += 1;
         }
         let g = Guard {
             position: pos,
@@ -88,34 +94,33 @@ impl Map {
             height,
         };
 
+        println!("Constructed a {} x {} map with {} obstacles and guard starting at {:?}", width, height, m.obstacles.len(), g);
+
         (g, m)
     }
 
     fn contains(&self, pos: Point) -> bool {
-        pos.x >= 0 && pos.y >= 0 || pos.x < self.width || pos.y < self.height
+        pos.x >= 0 && pos.y >= 0 && pos.x < self.width && pos.y < self.height
     }
 
     fn advance(&self, guard: Guard) -> Guard {
-        let mut guard = guard.clone();
-        loop {
-            let newpos = Self::forward(&guard);
-            if !self.contains(newpos) {
-                return Guard {
-                    position: newpos,
-                    direction: guard.direction,
-                };
-            }
-            if !self.obstacles.contains(&newpos) {
-                return Guard {
-                    position: newpos,
-                    direction: guard.direction,
-                };
-            } else {
-                guard = Guard {
-                    position: guard.position,
-                    direction: guard.direction.next(),
-                };
-            }
+        let newpos = Self::forward(&guard);
+        if !self.contains(newpos) {
+            return Guard {
+                position: newpos,
+                direction: guard.direction,
+            };
+        }
+        if !self.obstacles.contains(&newpos) {
+            return Guard {
+                position: newpos,
+                direction: guard.direction,
+            };
+        } else {
+            return Guard {
+                position: guard.position,
+                direction: guard.direction.next(),
+            };
         }
     }
 
