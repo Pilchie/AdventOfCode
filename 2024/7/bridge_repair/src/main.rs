@@ -44,7 +44,11 @@ fn collect_combinations(terms: &[u64]) -> Vec<u64> {
     
     for c in collect_combinations(&terms[1..]) {
         res.push(terms[0] + c);
-        res.push(terms[0] * c)
+        res.push(terms[0] * c);
+        let l = format!("{}", c);
+        let r = format!("{}", terms[0]);
+        let new = (l + &r).parse::<u64>().unwrap();
+        res.push(new);
     }
 
     res
