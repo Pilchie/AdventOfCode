@@ -254,6 +254,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20145670ba436b55d91fc92d25e71160fbfbdd57831631c8d7d36377a476f1cb"
 
 [[package]]
+name = "resonant_collinearity"
+version = "0.1.0"
+
+[[package]]
 name = "safety_reports"
 version = "0.1.0"
 
