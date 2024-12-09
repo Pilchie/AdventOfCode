@@ -94,6 +94,10 @@ name = "dirac_dice"
 version = "0.1.0"
 
 [[package]]
+name = "disk_fragmenter"
+version = "0.1.0"
+
+[[package]]
 name = "docking"
 version = "0.1.0"
 
