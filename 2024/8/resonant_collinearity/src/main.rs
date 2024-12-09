@@ -7,8 +7,11 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let contents = fs::read_to_string(&args[1]).expect("Something went wrong reading the file");
     let map = Map::parse(&contents);
-    let antinodes = map.count_antinodes();
-    println!("There are {} antipodes.", antinodes);
+    let antinodes = map.count_antinodes(|p1, p2| map.ans_part1(p1, p2));
+    println!("There are {} antipodes using part1.", antinodes);
+    let antinodes = map.count_antinodes(|p1, p2| map.ans_part2(p1, p2));
+    println!("There are {} antipodes using part2.", antinodes);
+
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -58,12 +61,12 @@ impl Map {
         }
     }
 
-    fn count_antinodes(&self) -> usize {
+    fn count_antinodes<F>(&self, enumerator: F) -> usize where F: Fn(&Point, &Point) -> Vec<Point> {
         let mut antinodes = HashSet::new();
         for set in self.antennas.values() {
             for i in 0..set.len() {
                 for j in i + 1..set.len() {
-                    for p in self.ans(&set[i], &set[j]) {
+                    for p in enumerator(&set[i], &set[j]) {
                         if self.contains(&p) {
                             antinodes.insert(p);
                         }
@@ -75,27 +78,58 @@ impl Map {
         antinodes.len()
     }
 
-    fn ans(&self, p1: &Point, p2: &Point) -> Vec<Point> {
+    fn ans_part1(&self, p1: &Point, p2: &Point) -> Vec<Point> {
+        if p1.y > p2.y {
+            return self.ans_part1(p2, p1);
+        }
+
         let mut ans = Vec::new();
         let dx = (p2.x - p1.x).abs();
         let dy = (p2.y - p1.y).abs();
-        if p1.y < p2.y {
-            if p1.x < p2.x {
-                ans.push(Point::new(p1.x - dx, p1.y - dy));
-                ans.push(Point::new(p2.x + dx, p2.y + dy));
-            } else {
-                ans.push(Point::new(p1.x + dx, p1.y - dy));
-                ans.push(Point::new(p2.x - dx, p2.y + dy));
+        if p1.x < p2.x {
+            ans.push(Point::new(p1.x - dx, p1.y - dy));
+            ans.push(Point::new(p2.x + dx, p2.y + dy));
+        } else {
+            ans.push(Point::new(p1.x + dx, p1.y - dy));
+            ans.push(Point::new(p2.x - dx, p2.y + dy));
+        }
+        ans
+    }
+
+    fn ans_part2(&self, p1: &Point, p2: &Point) -> Vec<Point> {
+        if p1.y > p2.y {
+            return self.ans_part2(p2, p1);
+        }
+
+        let mut ans = Vec::new();
+        let dx = (p2.x - p1.x).abs();
+        let dy = (p2.y - p1.y).abs();
+
+        if p1.x < p2.x {
+            let mut p = p1.clone();
+            while self.contains(&p) {
+                ans.push(p);
+                p = Point::new(p.x - dx, p.y - dy);
+            }
+            p = p2.clone();
+            while self.contains(&p) {
+                ans.push(p);
+                p = Point::new(p.x + dx, p.y + dy);
             }
         } else {
-            if p1.x < p2.x {
-                ans.push(Point::new(p1.x - dx, p1.y + dy));
-                ans.push(Point::new(p2.x + dx, p2.y - dy));
-            } else {
-                ans.push(Point::new(p1.x - dx, p1.y - dy));
-                ans.push(Point::new(p2.x + dx, p2.y + dy));
+            let mut p = p1.clone();
+            while self.contains(&p) {
+                ans.push(p);
+                p = Point::new(p.x + dx, p.y - dy);
+
+            }
+            p = p2.clone();
+            while self.contains(&p) {
+                ans.push(p);
+                p = Point::new(p.x - dx, p.y + dy);
             }
         }
+
         ans
     }
 
