@@ -130,6 +130,10 @@ name = "handheld"
 version = "0.1.0"
 
 [[package]]
+name = "hoof_it"
+version = "0.1.0"
+
+[[package]]
 name = "hydrothermal-venture"
 version = "0.1.0"
 
