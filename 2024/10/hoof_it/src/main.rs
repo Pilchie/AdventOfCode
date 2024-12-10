@@ -5,14 +5,18 @@ fn main() {
     let contents = fs::read_to_string(&args[1]).expect("Something went wrong reading the file");
 
     let map = Map::parse(&contents);
-    let mut sum = 0;
+    let mut sum_scores = 0;
+    let mut sum_ratings = 0;
+
     for th in map.trailheads() {
         let score = map.score(th);
-        println!("The trailhead at ({:?}) has score {}", th, score);
-        sum += score;
+        let rating = map.rating(th);
+        println!("The trailhead at ({:?}) has score {} and rating {}", th, score, rating);
+        sum_scores += score;
+        sum_ratings += rating;
     }
 
-    println!("The sum of all the scores is {}", sum);
+    println!("The sum of all the scores is {}, and the sum of the ratings is {}", sum_scores, sum_ratings);
 }
 
 struct Map {
@@ -55,6 +59,12 @@ impl Map {
         set.len()
     }
 
+    fn rating(&self, trailhead: Point) -> usize {
+        let mut collector = HashSet::new();
+        self.paths(&vec![trailhead], &mut collector);
+        collector.len()
+    }
+
     fn peaks(&self, path: &[Point]) -> Vec<Point> {
         let mut res = Vec::new();
         for n in self.next(path.last().unwrap()) {
@@ -69,6 +79,19 @@ impl Map {
         }
 
         res
+    }
+
+    fn paths(&self, path: &[Point], collector: &mut HashSet<Vec<Point>>) {
+        for n in self.next(path.last().unwrap()) {
+            let mut newpath = path.to_vec();
+            newpath.push(n);
+
+            if self.heights[n.y][n.x] == 9 {
+                collector.insert(newpath);
+            } else {
+                self.paths(&newpath, collector);
+            }
+        }
     }
 
     fn next(&self, p: &Point) -> Vec<Point> {
