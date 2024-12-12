@@ -1,39 +1,67 @@
-use std::{env, fs};
+use std::{collections::HashMap, env, fs};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
     let contents = fs::read_to_string(&args[1]).expect("Something went wrong reading the file");
 
-    let mut stones: Vec<String> = contents.split(' ').map(|s| s.to_string()).collect();
+    let stones: Vec<u64> = contents
+        .split(' ')
+        .map(|s| s.parse::<u64>().unwrap())
+        .collect();
     println!("Initial arrangement:");
     println!("{:?}", stones);
-    for b in 0..25 {
-        stones = blink(&stones);
-        println!("After {} blink(s): {}", b + 1, stones.len());
-        //println!("{:?}", stones);
-    }
-}
 
-fn blink(stones: &[String]) -> Vec<String> {
-    let mut res = Vec::new();
-    res.reserve(stones.len());
-
+    let mut known = HashMap::<State, u64>::new();
+    let mut count = 0;
     for s in stones {
-        if let Ok(val) = s.parse::<u64>() {
-            if val == 0 {
-                res.push("1".to_string());
-            } else if s.len() % 2 == 0 {
-                add_string_val(&mut res, &s[0..s.len() / 2]);
-                add_string_val(&mut res, &s[s.len() / 2..]);
-            } else {
-                res.push(format!("{}", val * 2024));
-            }
-        }
+        count += count_children_of(s, 75, &mut known);
     }
-    res
+    println!("{}", count);
 }
 
-fn add_string_val(stones: &mut Vec<String>, s: &str) {
-    let val = s.parse::<u64>().unwrap();
-    stones.push(format!("{}", val));
+#[derive(Eq, Hash, PartialEq)]
+struct State {
+    val: u64,
+    blinks: u8,
+}
+
+fn count_children_of(val: u64, blinks: u8, known: &mut HashMap<State, u64>) -> u64 {
+    if let Some(val) = known.get(&State { val, blinks }) {
+        return *val;
+    }
+
+    let sstr = val.to_string();
+    let res: u64;
+    if val == 0 {
+        res = match blinks > 1 {
+            true => count_children_of(1, blinks - 1, known),
+            false => 1,
+        };
+    } else if sstr.len() % 2 == 0 {
+        res = match blinks > 1 {
+            true => {
+                let v1 = sstr[0..sstr.len() / 2].parse::<u64>().unwrap();
+                let v2 = sstr[sstr.len() / 2..].parse::<u64>().unwrap();
+                let res1 = count_children_of(v1, blinks - 1, known);
+                let res2 = count_children_of(v2, blinks - 1, known);
+                res1 + res2
+            },
+            false => 2,
+        };
+    } else {
+        res = match blinks > 1 {
+            true => count_children_of(val * 2024, blinks - 1, known),
+            false => 1,
+        };
+    }
+
+    known.insert(
+        State {
+            val,
+            blinks,
+        },
+        res,
+    );
+
+    res
 }
