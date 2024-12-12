@@ -118,6 +118,10 @@ name = "extended-polymerization"
 version = "0.1.0"
 
 [[package]]
+name = "garden_groups"
+version = "0.1.0"
+
+[[package]]
 name = "gear_ratios"
 version = "0.1.0"
 
