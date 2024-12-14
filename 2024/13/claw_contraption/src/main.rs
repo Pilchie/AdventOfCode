@@ -7,10 +7,12 @@ fn main() {
 
     let mut total_tokens = 0;
     let mut count = 0;
-    for m in machines {
+    let mut winnable = Vec::new();
+    for (i, m) in machines.iter().enumerate() {
         if let Some(tokens) = m.minimum_tokens() {
             total_tokens += tokens;
             count += 1;
+            winnable.push(i);
         }
     }
 
@@ -18,6 +20,8 @@ fn main() {
         "It would take {} total tokens to win all prizes, from {} games.",
         total_tokens, count
     );
+
+    println!("winnable machines: {:?}", winnable);
 }
 
 struct Button {
