@@ -50,8 +50,8 @@ impl Prize {
     fn parse(line: &str) -> Self {
         let (_, rest) = line.split_once(": ").unwrap();
         let (xstr, ystr) = rest.split_once(", ").unwrap();
-        let x = /*10000000000000 +*/ xstr[2..].parse::<i64>().unwrap();
-        let y = /*10000000000000 +*/ ystr[2..].parse::<i64>().unwrap();
+        let x = 10000000000000 + xstr[2..].parse::<i64>().unwrap();
+        let y = 10000000000000 + ystr[2..].parse::<i64>().unwrap();
 
         Self { x, y }
     }
@@ -104,15 +104,18 @@ impl Machine {
             return None;
         }
 
-        if a >= 100 || b >= 100 {
-            // println!(
-            //     "No solution (too far) for machine with prize at ({},{}) (a/b) are: ({},{})",
-            //     self.prize.x, self.prize.y, a, b
-            // );
+        let tokens = a * self.button_a.cost + b * self.button_b.cost;
+
+        let x = a * self.button_a.x + b * self.button_b.x;
+        let y = a * self.button_a.y + b * self.button_b.y;
+        if x != self.prize.x || y != self.prize.y {
+            println!(
+                "Found a case where the formula didn't work! for machine with prize at ({},{}) costs {}, (a/b) is ({}/{})",
+                self.prize.x, self.prize.y, tokens, a, b
+            );
             return None;
         }
 
-        let tokens = a * self.button_a.cost + b * self.button_b.cost;
         println!(
             "Solution for machine with prize at ({},{}) costs {}, (a/b) is ({}/{})",
             self.prize.x, self.prize.y, tokens, a, b
