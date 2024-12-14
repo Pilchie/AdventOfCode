@@ -84,12 +84,20 @@ impl Machine {
         let mut solutions = Vec::new();
         for a in 0..101 {
             for b in 0..101 {
-                let xloc = a * self.button_a.x + b * self.button_b.x; 
+                let xloc = a * self.button_a.x + b * self.button_b.x;
                 let yloc = a * self.button_a.y + b * self.button_b.y;
                 if xloc == self.prize.x && yloc == self.prize.y {
                     let tokens = a * self.button_a.cost + b * self.button_b.cost;
+                    println!(
+                        "Solution for machine with prize at ({},{}) costs {}, (a/b) is ({}/{})",
+                        self.prize.x, self.prize.y, tokens, a, b
+                    );
                     solutions.push(tokens);
-                } else if xloc > self.prize.x || yloc > self.prize.y { 
+                } else if xloc > self.prize.x || yloc > self.prize.y {
+                    println!(
+                        "Stopping because at (a/b) ({}/{}) we got to ({},{}) for machine ({},{})",
+                        a, b, xloc, yloc, self.prize.x, self.prize.y
+                    );
                     break;
                 }
             }
