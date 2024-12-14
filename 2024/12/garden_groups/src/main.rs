@@ -6,7 +6,8 @@ fn main() {
 
     let garden = Garden::parse_map(&contents);
     let cost: usize = garden.cost();
-    println!("The total cost is {}", cost);
+    let discounted_cost = garden.discounted_cost();
+    println!("The total cost is {}, and the discounted cost is {}", cost, discounted_cost);
 }
 
 struct Region {
@@ -115,10 +116,75 @@ impl Garden {
         perimeter
     }
 
+    fn sides(&self, region: &Region) -> usize {
+        let mut side_count = 0;
+        let mut top_sides = Vec::new();
+        let mut left_sides = Vec::new();
+        let mut bottom_sides = Vec::new();
+        let mut right_sides = Vec::new();
+        for p in &region.plots {
+            if p.y == 0 || region.value != self.map[p.y - 1][p.x] {
+                top_sides.push(*p);
+            }
+            if p.x == 0 || region.value != self.map[p.y][p.x - 1] {
+                left_sides.push(*p);
+            }
+            if p.y == self.map.len() - 1 || region.value != self.map[p.y + 1][p.x] {
+                bottom_sides.push(*p);
+            }
+            if p.x == self.map[p.y].len() - 1 || region.value != self.map[p.y][p.x + 1] {
+                right_sides.push(*p);
+            }
+        }
+        side_count += Self::horizontal(&mut top_sides);
+        side_count += Self::horizontal(&mut bottom_sides);
+        side_count += Self::vertical(&mut left_sides);
+        side_count += Self::vertical(&mut right_sides);
+        side_count
+    }
+
+    fn horizontal(points: &mut Vec<Point>) -> usize {
+        points.sort_by(|p1, p2| p1.y.cmp(&p2.y).then(p1.x.cmp(&p2.x)));
+        let mut lastx = None;
+        let mut lasty = None;
+        let mut count = 0;
+        for t in points {
+            if Some(t.y) != lasty || Some(t.x - 1) != lastx  {
+                count += 1;
+            }
+            lastx = Some(t.x);
+            lasty = Some(t.y);
+        }
+        count
+    }
+
+    fn vertical(points: &mut Vec<Point>) -> usize {
+        points.sort_by(|p1, p2| p1.x.cmp(&p2.x).then(p1.y.cmp(&p2.y)));
+        let mut lastx = None;
+        let mut lasty = None;
+        let mut count = 0;
+        for t in points {
+            if Some(t.x) != lastx || Some(t.y - 1) != lasty  {
+                count += 1;
+            }
+            lastx = Some(t.x);
+            lasty = Some(t.y);
+        }
+        count
+    }
+
     fn cost(&self) -> usize {
         let mut cost = 0;
         for r in &self.regions {
             cost += r.area() * self.perimeter(r)
+        }
+        cost
+    }
+
+    fn discounted_cost(&self) -> usize {
+        let mut cost = 0;
+        for r in &self.regions {
+            cost += r.area() * self.sides(r)
         }
         cost
     }
