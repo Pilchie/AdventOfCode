@@ -340,3 +340,7 @@ version = "0.1.0"
 [[package]]
 name = "trick-shot"
 version = "0.1.0"
+
+[[package]]
+name = "warehouse_woes"
+version = "0.1.0"
