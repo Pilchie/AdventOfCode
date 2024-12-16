@@ -6,18 +6,23 @@ fn main() {
     let debug = false;
     let mut lobby = Lobby::parse(&contents, 103, 101);
 
-    for i in 0..100 {
+    let mut count = 0;
+    loop {
+        lobby = lobby.tick();
+        count += 1;
         if debug {
-            println!("After {} seconds", i);
+            println!("After {} seconds", count);
             lobby.draw();
         }
-        lobby = lobby.tick();
+        if lobby.has_dense_quadrant() {
+            break;
+        }
     }
 
     println!("Final state:");
     lobby.draw();
 
-    println!("Safety score is: {}", lobby.safety_score());
+    println!("Safety score after {} seconds is: {}", count, lobby.safety_score());
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -102,7 +107,7 @@ impl Lobby {
         }
     }
 
-    fn safety_score(&self) -> i32 {
+    fn count_quadrants(&self) -> [i32;4] {
         let mut quadrants: [i32; 4] = [0, 0, 0, 0];
         for r in &self.robots {
             if let Some(q) = self.quadrant(r) {
@@ -110,11 +115,35 @@ impl Lobby {
             }
         }
 
+        quadrants
+    }
+
+    fn safety_score(&self) -> i32 {
+        let quadrants = self.count_quadrants();
         let mut res = 1;
         for q in quadrants {
             res *= q;
         }
         res
+    }
+
+    fn has_dense_quadrant(&self) -> bool {
+        let quadrants = self.count_quadrants();
+        for i1 in 0..4 {
+            let mut found_close = false;
+            for i2 in 0..4 {
+                let ratio = quadrants[i1] as f64 / quadrants[i2] as f64;
+                if i1 != i2 && ratio > 0.5 && ratio < 2.0 {
+                    found_close = true;
+                }
+            }
+
+            if !found_close {
+                return true;
+            }
+        }
+
+        false
     }
 
     fn quadrant(&self, robot: &Robot) -> Option<usize> {
