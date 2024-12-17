@@ -58,6 +58,10 @@ name = "chiton"
 version = "0.1.0"
 
 [[package]]
+name = "chronospatial_computer"
+version = "0.1.0"
+
+[[package]]
 name = "claw_contraption"
 version = "0.1.0"
 
