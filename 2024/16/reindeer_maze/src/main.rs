@@ -8,9 +8,20 @@ fn main() {
     let contents = fs::read_to_string(&args[1]).expect("Something went wrong reading the file");
     let maze = Maze::parse(&contents);
 
-    let minsteps = maze.count_min_steps();
+    let best_paths = maze.best_paths();
+    let mut tiles = HashSet::new();
+    for path in &best_paths {
+        for s in path {
+            tiles.insert(s.state.position);
+        }
+    }
 
-    println!("The shortest path is {}.", minsteps);
+    println!(
+        "The shortest path is {}, and there are {} spots along it.",
+        best_paths.first().unwrap().last().unwrap().cost,
+        tiles.len()
+    );
+    maze.print(&tiles);
 }
 
 struct Maze {
@@ -45,56 +56,105 @@ impl Maze {
         Self { start, end, walls }
     }
 
-    fn count_min_steps(&self) -> usize {
+    fn best_paths(&self) -> Vec<Vec<StateWithCost>> {
         let mut seen = HashMap::<State, usize>::new();
         let mut queue = VecDeque::new();
-        queue.push_back(StateWithCost {
+        queue.push_back(vec![StateWithCost {
             state: State {
                 position: self.start,
                 direction: Direction::East,
             },
             cost: 0,
-        });
+        }]);
 
         let mut min = usize::MAX;
+        let mut solutions = Vec::new();
         while !queue.is_empty() {
-            let s = queue.pop_front().unwrap();
-            //println!("Considering {:?}", s);
+            let path = queue.pop_front().unwrap();
+            let s = path.last().unwrap();
+            // println!("Considering {:?}...", s);
             if s.state.position == self.end {
                 if s.cost < min {
+                    println!("  Found a new better solution with cost {}", s.cost);
                     min = s.cost;
+                    solutions.clear();
+                    solutions.push(path);
+                } else if s.cost == min {
+                    println!("  Adding an additional solution with cost {}", s.cost);
+                    solutions.push(path);
+                } else {
+                    println!(
+                        "  Found a solution, but not keeping, because it cost {}",
+                        s.cost
+                    );
                 }
-            } else {
+            } else if s.cost < min {
                 for n in self.next_positions(&s) {
                     if let Some(existing) = seen.get(&n.state) {
-                        if *existing > n.cost {
+                        if *existing >= n.cost {
+                            let mut newpath = path.clone();
+                            newpath.push(n);
+                            queue.push_back(newpath);
+                            // println!("  Updating with {:?} because its less than existing {}", n, existing);
                             seen.insert(n.state, n.cost);
-                            queue.push_back(n);
+                        } else {
+                            // println!("  Not adding {:?}, because we we have cost {}", n, existing);
                         }
                     } else {
+                        let mut newpath = path.clone();
+                        newpath.push(n);
+                        queue.push_back(newpath);
+                        //  println!("  Adding {:?}", n);
                         seen.insert(n.state, n.cost);
-                        queue.push_back(n);
                     }
                 }
+            } else {
+                // println!("  Abandoning path as more than existing min");
             }
         }
 
-        min
+        solutions
     }
-
 
     fn next_positions(&self, state: &StateWithCost) -> Vec<StateWithCost> {
         let mut res = Vec::new();
 
         let advanced = state.advance();
         if !self.walls.contains(&advanced.state.position) {
-            
             res.push(advanced);
         }
 
         res.push(state.turn_right());
         res.push(state.turn_left());
         res
+    }
+
+    fn print(&self, tiles: &HashSet<Point>) {
+        let mut width = 0;
+        let mut height = 0;
+        for w in &self.walls {
+            if w.x > width {
+                width = w.x;
+            }
+
+            if w.y > height {
+                height = w.y;
+            }
+        }
+
+        for y in 0..height + 1 {
+            for x in 0..width + 1 {
+                let p = Point { x, y };
+                if tiles.contains(&p) {
+                    print!("O");
+                } else if self.walls.contains(&p) {
+                    print!("#");
+                } else {
+                    print!(".");
+                }
+            }
+            println!()
+        }
     }
 }
 
