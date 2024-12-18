@@ -6,7 +6,7 @@ fn main() {
     let contents = fs::read_to_string(path).expect("Something went wrong reading the file");
     let test = path.contains("test");
 
-    let (maxx, maxy, bytes) = match test {
+    let (maxx, maxy, _bytes) = match test {
         true => (6, 6, 12),
         false => (70, 70, 1024),
     };
@@ -15,17 +15,21 @@ fn main() {
     let end = Point { x: maxx, y: maxy };
 
     let mut corrupted = HashSet::new();
-    for (i, line) in contents.lines().enumerate() {
-        if i > bytes {
-            break;
-        }
-
+    for line in contents.lines() {
         let (xstr, ystr) = line.split_once(",").unwrap();
         let x = xstr.parse::<u8>().unwrap();
         let y = ystr.parse::<u8>().unwrap();
         corrupted.insert(Point { x, y });
-    }
+        //println!("Trying with {} ({}) bytes have fallen", line, corrupted.len());
 
+        if steps_to_exit(start, end, maxx, maxy, &corrupted) == None {
+            println!("No exit once {} fell", line);
+            break;
+        }
+    }
+}
+
+fn steps_to_exit(start: Point, end: Point, maxx: u8, maxy: u8, corrupted: &HashSet<Point>) -> Option<u32> {
     let mut queue = VecDeque::new();
     let mut seen = HashMap::new();
     let mut min = u32::MAX;
@@ -36,7 +40,6 @@ fn main() {
         let current = queue.pop_front().unwrap();
 
         if current.point == end {
-            println!("Found a solution that took {} steps", current.steps);
             if current.steps < min {
                 min = current.steps;
             }
@@ -46,7 +49,6 @@ fn main() {
             continue;
         }
 
-        println!("Considering children of {:?}", current);
         for next in next_points(&current.point, maxx, maxy, &corrupted) {
             if let Some(existing) = seen.get(&next) {
                 if *existing > current.steps + 1 {
@@ -61,6 +63,11 @@ fn main() {
                 queue.push_back(State { point: next, steps: current.steps + 1, });
             }
         }
+    }
+
+    match min == u32::MAX {
+        true => None,
+        false => Some(min)
     }
 }
 
