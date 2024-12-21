@@ -17,23 +17,26 @@ fn main() {
         true => 1,
         false => 100,
     };
+
+    let mut time_to_end = HashMap::new();
+    for i in 0..orig_path.len() {
+        time_to_end.insert(orig_path[i], orig_path.len() - i);
+    }
+
     let mut cheats = 0;
-    let mut cheated = HashSet::new();
-    for p in &orig_path {
-        for n in orig_map.neighbor_walls(p) {
-            if !cheated.contains(&n) {
-                cheated.insert(n);
-
-                print!("Removing wall at {:?} - ", n);
-
-                let cheat_map = orig_map.cheat_at(&n);
-                let cheat_path = cheat_map
-                    .path_faster_than(orig_path.len())
-                    .unwrap_or(orig_path.clone());
-                let savings = orig_path.len() - cheat_path.len();
-                println!(" fastest is {} (savings {})", cheat_path.len(), savings);
-                if savings >= min_savings {
-                    cheats += 1;
+    let mut ends = HashSet::new();
+    for p in orig_path {
+        for e in orig_map.cheat_ends(&p) {
+            if !ends.contains(&(p, e)) {
+                ends.insert((p, e));
+                if let Some(tte) = time_to_end.get(&e) {
+                    let ttp = time_to_end[&p];
+                    if ttp > *tte + 2 {
+                        let savings = ttp - *tte - 2;
+                        if savings >= min_savings {
+                            cheats += 1;
+                        }
+                    }
                 }
             }
         }
@@ -81,16 +84,6 @@ impl Map {
         }
 
         Self { walls, start, end }
-    }
-
-    fn cheat_at(&self, point: &Point) -> Self {
-        let mut walls = self.walls.clone();
-        walls.remove(point);
-        Self {
-            walls,
-            start: self.start.clone(),
-            end: self.end.clone(),
-        }
     }
 
     fn path_faster_than(&self, time: usize) -> Option<Vec<Point>> {
@@ -181,55 +174,35 @@ impl Map {
         res
     }
 
-    fn neighbor_walls(&self, point: &Point) -> Vec<Point> {
+    fn cheat_ends(&self, point: &Point) -> Vec<Point> {
         let mut res = Vec::new();
         let maxx = self.walls.iter().map(|p| p.x).max().unwrap();
         let maxy = self.walls.iter().map(|p| p.y).max().unwrap();
-        if point.x > 0
-            && self.walls.contains(&Point {
-                x: point.x - 1,
-                y: point.y,
-            })
-        {
+        if point.x > 1 {
             res.push(Point {
-                x: point.x - 1,
+                x: point.x - 2,
                 y: point.y,
             })
         }
 
-        if point.x < maxx
-            && self.walls.contains(&Point {
-                x: point.x + 1,
-                y: point.y,
-            })
-        {
+        if point.x < maxx - 1 {
             res.push(Point {
-                x: point.x + 1,
+                x: point.x + 2,
                 y: point.y,
             })
         }
 
-        if point.y > 0
-            && self.walls.contains(&Point {
-                x: point.x,
-                y: point.y - 1,
-            })
-        {
+        if point.y > 1 {
             res.push(Point {
                 x: point.x,
-                y: point.y - 1,
+                y: point.y - 2,
             })
         }
 
-        if point.y < maxy
-            && self.walls.contains(&Point {
-                x: point.x,
-                y: point.y + 1,
-            })
-        {
+        if point.y < maxy - 1 {
             res.push(Point {
                 x: point.x,
-                y: point.y + 1,
+                y: point.y + 2,
             })
         }
 
