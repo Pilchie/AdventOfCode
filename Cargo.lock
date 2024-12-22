@@ -158,6 +158,10 @@ name = "jigsaw"
 version = "0.1.0"
 
 [[package]]
+name = "keypad_conundrum"
+version = "0.1.0"
+
+[[package]]
 name = "lanternfish"
 version = "0.1.0"
 
