@@ -196,6 +196,10 @@ name = "messages"
 version = "0.1.0"
 
 [[package]]
+name = "monkey_market"
+version = "0.1.0"
+
+[[package]]
 name = "mull_it_over"
 version = "0.1.0"
 
