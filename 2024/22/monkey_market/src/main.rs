@@ -1,4 +1,4 @@
-use std::{env, fs, num::ParseIntError};
+use std::{collections::{HashMap, HashSet}, env, fs, num::ParseIntError};
 
 fn main() -> Result<(), ParseIntError> {
     let args: Vec<String> = env::args().collect();
@@ -17,35 +17,43 @@ fn main() -> Result<(), ParseIntError> {
 
     // Part 2
     let mut max_bananas = 0;
-    let sequences = sequences();
-    println!("Found {} sequences to try", sequences.len());
-    for sequence in sequences {
-        println!("Trying sequence {:?}", sequence);
-        let mut bananas = 0;
-        for line in contents.lines() {
-            let first = line.parse::<i64>()?;
-            let second = next_secret(first);
-            let third = next_secret(second);
-            let mut prev = next_secret(third);
-            let mut diff1 = diff(second, first);
-            let mut diff2 = diff(third, second);
-            let mut diff3 = diff(prev, third);
-            for _ in 4..2000 {
-                let secret = next_secret(prev);
-                let diff4 = diff(secret, prev);
-                if [diff1, diff2, diff3, diff4] == sequence {
-                    bananas += secret % 10;
-                    //println!("For sequence {:?} - secret {}, found a match: Got {}", sequence, first, secret % 10);
-                    break; 
-                }
-                diff1 = diff2;
-                diff2 = diff3;
-                diff3 = diff4;
-                prev = secret;
+    let mut all_sequences = HashSet::new();
+    let mut sequences_by_monkey = Vec::new();
+
+    for line in contents.lines() {
+        let mut counts_by_sequence = HashMap::new();
+        let first = line.parse::<i64>()?;
+        let second = next_secret(first);
+        let third = next_secret(second);
+        let mut prev = next_secret(third);
+        let mut diff1 = diff(second, first);
+        let mut diff2 = diff(third, second);
+        let mut diff3 = diff(prev, third);
+        for _ in 4..2000 {
+            let secret = next_secret(prev);
+            let diff4 = diff(secret, prev);
+            let sequence = [diff1, diff2, diff3, diff4];
+            all_sequences.insert(sequence);
+            if !counts_by_sequence.contains_key(&sequence) {
+                counts_by_sequence.insert(sequence, secret % 10);
+            }
+            diff1 = diff2;
+            diff2 = diff3;
+            diff3 = diff4;
+            prev = secret;
+        }
+        sequences_by_monkey.push(counts_by_sequence);
+    }
+
+    for sequence in all_sequences {
+        let mut bananas_sequence = 0;
+        for monkey in &sequences_by_monkey {
+            if let Some(bananas_monkey) = monkey.get(&sequence) {
+                bananas_sequence += bananas_monkey;
             }
         }
-        if bananas > max_bananas {
-            max_bananas = bananas;
+        if bananas_sequence > max_bananas {
+            max_bananas = bananas_sequence;
         }
     }
     println!("The most bananas you can get is: {}", max_bananas);
@@ -54,37 +62,6 @@ fn main() -> Result<(), ParseIntError> {
 
 fn diff(new: i64, old: i64) -> i64 {
     new % 10 - old % 10
-}
-
-fn sequences() -> Vec<[i64; 4]> {
-    let mut res = Vec::new();
-    let mut first: i64 = -9;
-    println!("Starting to generate sequences");
-    while first <= 9 {
-        let mut second = -9;
-        while second <= 9 {
-            if (first + second).abs() <= 9 {
-                let mut third = -9;
-                while third <= 9 {
-                    if (second + third).abs() <= 9 {
-                        let mut fourth = -9;
-                        while fourth <= 9 {
-                            if (third + fourth).abs() <= 9 {
-                                res.push([first, second, third, fourth]);
-                            }
-                            fourth += 1;
-                        }
-                    }
-                    third += 1;
-
-                }
-            }
-            second += 1;
-        }
-        first += 1;
-    }
-
-    res
 }
 
 fn mix(input: i64, other: i64) -> i64 {
