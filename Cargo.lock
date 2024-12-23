@@ -162,6 +162,10 @@ name = "keypad_conundrum"
 version = "0.1.0"
 
 [[package]]
+name = "lan_party"
+version = "0.1.0"
+
+[[package]]
 name = "lanternfish"
 version = "0.1.0"
 
