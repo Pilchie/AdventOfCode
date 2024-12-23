@@ -5,7 +5,9 @@ fn main() {
     let path = &args[1];
     let contents = fs::read_to_string(path).expect("Something went wrong reading the file");
 
-    let mut sum = 0;
+    let mut sum_part1 = 0;
+    let mut sum_part2 = 0;
+
     for line in contents.lines() {
         let num = &line[0..3].parse::<usize>().unwrap();
         let chars: Vec<_> = line.chars().collect();
@@ -18,13 +20,22 @@ fn main() {
         let dpad2_paths = possible_paths_for_paths::<DPad>(&dpad1_paths);
         //_dump("dpad2_paths", &dpad2_paths);
 
-        let complexity = dpad2_paths.first().unwrap().len();
-        println!("{} keypresses", complexity);
+        let complexity_part1 = dpad2_paths.first().unwrap().len();
+        println!("{} keypresses", complexity_part1);
 
-        sum += num * complexity;
+        let mut prev = numpad_paths;
+        for _ in 0..2 {
+            let step_paths = possible_paths_for_paths::<DPad>(&prev);
+            prev = step_paths;
+        }
+
+        let complexity_part2 = prev.first().unwrap().len();
+
+        sum_part1 += num * complexity_part1;
+        sum_part2 += num * complexity_part2;
     }
 
-    println!("The total complexity is {}", sum);
+    println!("The total complexity is {} for part 1, and {} for part 2", sum_part1, sum_part2);
 }
 
 fn _dump(label: &str, paths: &[Vec<char>]) {
