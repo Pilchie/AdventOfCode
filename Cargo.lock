@@ -86,6 +86,10 @@ name = "crabs"
 version = "0.1.0"
 
 [[package]]
+name = "crossed_wires"
+version = "0.1.0"
+
+[[package]]
 name = "cube_conundrum"
 version = "0.1.0"
 
