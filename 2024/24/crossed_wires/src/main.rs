@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{HashMap, HashSet},
     env, fs,
 };
 
@@ -14,63 +14,45 @@ fn main() {
 
     // Try to find the wrong outputs.
     // Start by figuring out what bits they are in.
-    let bad_bits = find_bad_bits(&circuit);
+    let mut bad_bits = find_bad_bits(&circuit);
+    bad_bits.sort();
+    bad_bits.reverse();
     println!("Bad bits are: {:?}", bad_bits);
 
-    // Add all the gates that have those x and y's as inputs.
-    let mut possible_gates = Vec::new();
-    let mut initial_level = HashSet::new();
-    for gate in &circuit.gates {
-        for b in &bad_bits {
+    let mut bad_adders = Vec::new();
+    for b in &bad_bits {
+        let mut adder = Vec::new();
+        let mut others = Vec::new();
+        for g in &circuit.gates {
             let xstr = format!("x{:02}", b);
-            let ystr = format!("y{:02}", b);
-            if gate.input1 == xstr
-                || gate.input2 == xstr
-                || gate.input1 == ystr
-                || gate.input2 == ystr
-            {
-                initial_level.insert(gate);
+            if g.input1 == xstr || g.input2 == xstr {
+                adder.push(g);
+                others.push(g.output);
             }
         }
-    }
-    println!(
-        "There are {} gates that have bad bits as direct inputs",
-        initial_level.len()
-    );
-    possible_gates.push(initial_level.clone());
-
-
-    let mut previous_level = initial_level;
-    loop {
-        let mut next_level = HashSet::new();
-        for c in previous_level {
-            for g in &circuit.gates{ 
-                if c.output == g.input1 || c.output == g.input2 {
-                    next_level.insert(g);
+        for w in others {
+            for g in &circuit.gates {
+                if g.input1 == w || g.input2 == w {
+                    adder.push(g);
                 }
-            } 
-        };
-        if next_level.is_empty() {
-            break;
+            }
         }
-        possible_gates.push(next_level.clone());
-        previous_level = next_level;
+        println!("Found bad adder with {} gates", adder.len());
+        if adder.len() != 5 {
+            println!("{:?}", adder);
+        }
+        bad_adders.push(adder);
     }
 
-    println!("There are {} levels to explore", possible_gates.len());
     let mut outputs_to_swap = HashSet::new();
-    for level in &possible_gates {
-        println!("Trying a new level with {} elements", level.len());
-        for g1 in level {
-            for g2 in level {
+    for adder in &bad_adders {
+        for g1 in adder {
+            for g2 in adder {
                 if g1 != g2 {
-                    //println!("  Trying to swap {} and {}", g1.output, g2.output);
-                    let modified = circuit.swap_outputs(g1, g2);
-                    if !modified.has_cycle() {
-                        if find_bad_bits(&modified).len() < bad_bits.len() {
-                            println!("  Found an improvement by swapping {} and {}", g1.output, g2.output);
-                            outputs_to_swap.insert((g1, g2));
-                        }
+                    let swapped = circuit.swap_outputs(g1, g2);
+                    println!("Trying to swap {} and {}", g1.output, g2.output);
+                    if find_bad_bits(&swapped).len() < bad_bits.len() {
+                        outputs_to_swap.insert((*g1, *g2));
                     }
                 }
             }
@@ -86,12 +68,14 @@ fn main() {
     }
 
     let fixed_bad = find_bad_bits(&fixed);
-    println!("There are {} bad bits in the fixed version", fixed_bad.len());
+    println!(
+        "There are {} bad bits in the fixed version",
+        fixed_bad.len()
+    );
 
     wires.sort();
     wires.dedup();
     println!("The wires are: {}", wires.join(","));
-
 }
 
 fn find_bad_bits(circuit: &Circuit) -> Vec<u8> {
@@ -252,45 +236,6 @@ impl<'a> Circuit<'a> {
             wire_states: self.wire_states.clone(),
             gates,
         }
-    }
-
-    fn has_cycle(&self) -> bool {
-        for i in 0..45 {
-            let xstr = format!("x{:02}", i);
-            let ystr = format!("y{:02}", i);
-
-            if self.wire_has_cycle(&xstr) {
-                return true;
-            }
-            if self.wire_has_cycle(&ystr) {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    fn wire_has_cycle(&self, wire: &str) -> bool {
-        let mut seen = HashSet::new();
-        let mut queue = VecDeque::new();
-        queue.push_back(wire);
-
-        while !(queue.is_empty())
-        {
-            let cur = queue.pop_front().unwrap();
-            for g in &self.gates {
-                if g.input1 == cur || g.input2 == cur {
-                    if seen.contains(&g) {
-                        println!("found a cycle involving {} - {:?}", wire, g);
-                        return true;
-                    }
-                    seen.insert(g);
-                    queue.push_back(&g.output);
-                }
-            }
-        }
-
-        false
     }
 }
 
