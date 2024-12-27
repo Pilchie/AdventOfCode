@@ -1,13 +1,13 @@
-use std::{env, fs};
+use std::{collections::HashSet, env, fs};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
     let contents = fs::read_to_string(&args[1]).expect("Something went wrong reading the file");
 
     let mut warehouse = Warehouse::parse(&contents);
-
+    println!("There are {} boxes to start", warehouse.count_boxes());
     let mut start = false;
-//    println!("Initial state:");
+    // println!("Initial state:");
     for line in contents.lines() {
         if line.is_empty() {
             start = true;
@@ -22,7 +22,7 @@ fn main() {
     }
     println!("Final state");
     warehouse.draw();
-
+    println!("There are {} boxes to finish", warehouse.count_boxes());
     println!("The sum of gps coords is {}", warehouse.sum_gps());
 }
 
@@ -30,10 +30,11 @@ fn main() {
 enum State {
     Empty,
     Wall,
-    Box,
+    BoxL,
+    BoxR,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct Point {
     x: usize,
     y: usize,
@@ -58,7 +59,7 @@ impl Warehouse {
                 let s = match ch {
                     '#' => State::Wall,
                     '.' => State::Empty,
-                    'O' => State::Box,
+                    'O' => State::BoxL,
                     '@' => State::Empty,
                     _ => panic!("Unexpected char in map!"),
                 };
@@ -69,6 +70,11 @@ impl Warehouse {
                     };
                 }
                 row.push(s);
+                if s == State::BoxL {
+                    row.push(State::BoxR);
+                } else {
+                    row.push(s);
+                }
             }
             rows.push(row);
         }
@@ -103,7 +109,7 @@ impl Warehouse {
         let mut sum = 0;
         for r in 0..self.state.len() {
             for c in 0..self.state[r].len() {
-                if self.state[r][c] == State::Box {
+                if self.state[r][c] == State::BoxL {
                     sum += 100 * r + c;
                 }
             }
@@ -114,19 +120,81 @@ impl Warehouse {
 
     fn try_move_up(&self, copied: &mut Vec<Vec<State>>) -> Point {
         let mut possible = false;
-        let mut atwall = false;
-        let mut y = self.robot.y - 1;
-        while !atwall && !possible {
-            match self.state[y][self.robot.x] {
-                State::Empty => possible = true,
-                State::Box => y -= 1,
-                State::Wall => atwall = true,
+        let mut blocked = false;
+        let mut boxes_to_push = Vec::new();
+
+        let mut boxes_above = HashSet::new();
+        match self.state[self.robot.y - 1][self.robot.x] {
+            State::Empty => possible = true,
+            State::Wall => blocked = true,
+            State::BoxL => {
+                boxes_above.insert(Point {
+                    y: self.robot.y - 1,
+                    x: self.robot.x,
+                });
+            }
+            State::BoxR => {
+                boxes_above.insert(Point {
+                    y: self.robot.y - 1,
+                    x: self.robot.x - 1,
+                });
+            }
+        };
+        if !boxes_above.is_empty() {
+            boxes_to_push.push(boxes_above.clone());
+        }
+
+        while !blocked && !possible {
+            let mut nextrow = HashSet::new();
+
+            for b in &boxes_above {
+                match self.state[b.y - 1][b.x] {
+                    State::Empty => {}
+                    State::Wall => blocked = true,
+                    State::BoxL => {
+                        nextrow.insert(Point { y: b.y - 1, x: b.x });
+                    }
+                    State::BoxR => {
+                        nextrow.insert(Point {
+                            y: b.y - 1,
+                            x: b.x - 1,
+                        });
+                    }
+                };
+                match self.state[b.y - 1][b.x + 1] {
+                    State::Empty => {}
+                    State::Wall => blocked = true,
+                    State::BoxL => {
+                        nextrow.insert(Point {
+                            y: b.y - 1,
+                            x: b.x + 1,
+                        });
+                    }
+                    State::BoxR => {
+                        // Do nothing, we would have already added this in the match above.
+                    }
+                };
+            }
+
+            if nextrow.is_empty() {
+                if !blocked {
+                    possible = true;
+                }
+            } else {
+                boxes_to_push.push(nextrow.clone());
+                boxes_above = nextrow;
             }
         }
 
         if possible {
-            for yi in y..self.robot.y {
-                copied[yi][self.robot.x] = copied[yi + 1][self.robot.x].clone();
+            boxes_to_push.reverse();
+            for row in &boxes_to_push {
+                for b in row {
+                    copied[b.y - 1][b.x] = copied[b.y][b.x];
+                    copied[b.y - 1][b.x + 1] = copied[b.y][b.x + 1];
+                    copied[b.y][b.x] = State::Empty;
+                    copied[b.y][b.x + 1] = State::Empty;
+                }
             }
             copied[self.robot.y - 1][self.robot.x] = State::Empty;
         }
@@ -142,19 +210,81 @@ impl Warehouse {
 
     fn try_move_down(&self, copied: &mut Vec<Vec<State>>) -> Point {
         let mut possible = false;
-        let mut atwall = false;
-        let mut y = self.robot.y + 1;
-        while !atwall && !possible {
-            match self.state[y][self.robot.x] {
-                State::Empty => possible = true,
-                State::Box => y = y + 1,
-                State::Wall => atwall = true,
+        let mut blocked = false;
+        let mut boxes_to_push = Vec::new();
+
+        let mut boxes_below = HashSet::new();
+        match self.state[self.robot.y + 1][self.robot.x] {
+            State::Empty => possible = true,
+            State::Wall => blocked = true,
+            State::BoxL => {
+                boxes_below.insert(Point {
+                    y: self.robot.y + 1,
+                    x: self.robot.x,
+                });
+            }
+            State::BoxR => {
+                boxes_below.insert(Point {
+                    y: self.robot.y + 1,
+                    x: self.robot.x - 1,
+                });
+            }
+        };
+        if !boxes_below.is_empty() {
+            boxes_to_push.push(boxes_below.clone());
+        }
+
+        while !blocked && !possible {
+            let mut nextrow = HashSet::new();
+
+            for b in &boxes_below {
+                match self.state[b.y + 1][b.x] {
+                    State::Empty => {}
+                    State::Wall => blocked = true,
+                    State::BoxL => {
+                        nextrow.insert(Point { y: b.y + 1, x: b.x });
+                    }
+                    State::BoxR => {
+                        nextrow.insert(Point {
+                            y: b.y + 1,
+                            x: b.x - 1,
+                        });
+                    }
+                };
+                match self.state[b.y + 1][b.x + 1] {
+                    State::Empty => {}
+                    State::Wall => blocked = true,
+                    State::BoxL => {
+                        nextrow.insert(Point {
+                            y: b.y + 1,
+                            x: b.x + 1,
+                        });
+                    }
+                    State::BoxR => {
+                        // Do nothing, we would have already added this in the match above.
+                    }
+                };
+            }
+
+            if nextrow.is_empty() {
+                if !blocked {
+                    possible = true;
+                }
+            } else {
+                boxes_to_push.push(nextrow.clone());
+                boxes_below = nextrow;
             }
         }
 
         if possible {
-            for yi in self.robot.y + 1..y {
-                copied[yi + 1][self.robot.x] = copied[yi][self.robot.x].clone();
+            boxes_to_push.reverse();
+            for row in &boxes_to_push {
+                for b in row {
+                    copied[b.y + 1][b.x] = copied[b.y][b.x];
+                    copied[b.y + 1][b.x + 1] = copied[b.y][b.x + 1];
+                    copied[b.y][b.x] = State::Empty;
+                    copied[b.y][b.x + 1] = State::Empty;
+                }
             }
             copied[self.robot.y + 1][self.robot.x] = State::Empty;
         }
@@ -175,8 +305,9 @@ impl Warehouse {
         while !atwall && !possible {
             match self.state[self.robot.y][x] {
                 State::Empty => possible = true,
-                State::Box => x = x - 1,
+                State::BoxR => x = x - 1,
                 State::Wall => atwall = true,
+                State::BoxL => x = x - 1,
             }
         }
 
@@ -203,14 +334,17 @@ impl Warehouse {
         while !atwall && !possible {
             match self.state[self.robot.y][x] {
                 State::Empty => possible = true,
-                State::Box => x = x + 1,
+                State::BoxL => x = x + 1,
                 State::Wall => atwall = true,
+                State::BoxR => x = x + 1,
             }
         }
 
         if possible {
-            for xi in self.robot.x + 1..x {
+            let mut xi = x - 1;
+            while xi >= self.robot.x + 1 {
                 copied[self.robot.y][xi + 1] = copied[self.robot.y][xi].clone();
+                xi -= 1;
             }
             copied[self.robot.y][self.robot.x + 1] = State::Empty;
         }
@@ -231,7 +365,8 @@ impl Warehouse {
                     print!("@");
                 } else {
                     match self.state[r][c] {
-                        State::Box => print!("O"),
+                        State::BoxL => print!("["),
+                        State::BoxR => print!("]"),
                         State::Wall => print!("#"),
                         State::Empty => print!("."),
                     };
@@ -239,5 +374,17 @@ impl Warehouse {
             }
             println!();
         }
+    }
+
+    fn count_boxes(&self) -> usize {
+        let mut count = 0;
+        for r in &self.state {
+            for s in r {
+                if *s == State::BoxL {
+                    count += 1;
+                }
+            }
+        }
+        count
     }
 }
