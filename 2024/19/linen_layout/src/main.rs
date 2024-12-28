@@ -1,4 +1,4 @@
-use std::{collections::{HashSet, VecDeque}, env, fs};
+use std::{collections::HashMap, env, fs};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -14,8 +14,9 @@ fn main() {
 
     let mut sum = 0;
     for pattern in patterns {
-        println!("Checking {}... ", pattern);
-        let ways = ways_to_make(pattern, &towels);
+        print!("Checking {}... ", pattern);
+        let mut memoized_patterns = HashMap::new();
+        let ways = ways_to_make(pattern, &towels, &mut memoized_patterns);
         println!("{} ways.", ways);
         sum += ways;
     }
@@ -23,44 +24,20 @@ fn main() {
     println!("{} ways to make the patterns.", sum);
 }
 
-fn ways_to_make(pattern: &str, towels: &[&str]) -> usize {
-    let mut queue = VecDeque::new();
-    let mut seen = HashSet::new();
-    queue.push_back(vec![&pattern[0..0]]);
-    let mut solutions = 0;
-
-    while !queue.is_empty() {
-        let curvec = queue.pop_back().unwrap();
-        let curpath = curvec.join(",");
-        let cur = curvec.join("");
-        if cur == pattern {
-            //println!("  possible.");
-            solutions += 1;
-        } else if seen.contains(&curpath) {
-            continue;
-        } else if cur.len() > pattern.len() {
-            continue;
-        }
-
-        seen.insert(curpath.clone());
-
-        let rest = &pattern[cur.len()..];
-        //println!("\tcur is '{}', rest is '{}', curpath is {}", cur, rest, curpath);
-        //print!("Considering: ");
+fn ways_to_make<'a>(pattern: &'a str, towels: &[&str], seen: &mut HashMap<&'a str, usize>) -> usize {
+    if let Some(count) = seen.get(pattern) {
+        return *count;
+    } else {
+        let mut solutions = 0;
         for t in towels {
-            //print!("'{}' ", t);
-            if rest.starts_with(t) {
-                //print!("match, ");
-                let mut next = curvec.clone();
-                next.push(t);
-                queue.push_back(next);
-            } else {
-                //print!("no match, ")
+            if *t == pattern {
+                solutions += 1;
+            } else if pattern.starts_with(t) {
+                solutions += ways_to_make(&pattern[t.len()..], towels, seen)
             }
         }
-        //println!();
-    }
 
-    //println!("  NOT possible.");    
-    solutions
+        seen.insert(pattern, solutions);
+        solutions
+    }
 }
