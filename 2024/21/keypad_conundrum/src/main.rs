@@ -1,4 +1,4 @@
-use std::{env, fs, usize};
+use std::{collections::HashMap, env, fs, usize};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -24,8 +24,9 @@ fn main() {
         println!("{} keypresses", complexity_part1);
 
         let mut prev = numpad_paths;
-        for _ in 0..2 {
+        for i in 0..15 {
             let step_paths = possible_paths_for_paths::<DPad>(&prev);
+            println!("Completed step {}, with lenght {}", i, step_paths.first().unwrap().len());
             prev = step_paths;
         }
 
@@ -35,7 +36,10 @@ fn main() {
         sum_part2 += num * complexity_part2;
     }
 
-    println!("The total complexity is {} for part 1, and {} for part 2", sum_part1, sum_part2);
+    println!(
+        "The total complexity is {} for part 1, and {} for part 2",
+        sum_part1, sum_part2
+    );
 }
 
 fn _dump(label: &str, paths: &[Vec<char>]) {
@@ -49,10 +53,45 @@ fn _dump(label: &str, paths: &[Vec<char>]) {
     }
 }
 
+fn shortest_path<P: Path>(paths: &[Vec<char>], seen: &mut HashMap<Vec<char>, Vec<char>>) -> Vec<Vec<char>> {
+    let mut res = Vec::new();
+    for path in paths {
+        if path.len() == 0 {
+            continue;
+        }
+
+        let mut a = 0;
+        for i in 0..path.len() {
+            if path[i] == 'A' {
+                a = i;
+            }
+        }
+
+        let path_first = &path[0..a];
+        let path_rest = &path[a + 1..];
+        let rest = &shortest_path::<P>(path_rest, seen);
+
+        if let Some(first) = seen.get(path_first) {
+            let mut res = first.clone();
+            res.extend_from_slice(rest);
+            return  res;
+        }
+
+        let possible = possible_paths_for_paths::<P>(&[path_first.to_vec()]);
+        let mut m = possible.first().unwrap().clone();
+        seen.insert(path.to_vec(), m.clone());
+        m.extend_from_slice(rest);
+        m
+    }
+
+    res
+}
+
 fn possible_paths_for_paths<P: Path>(input_paths: &[Vec<char>]) -> Vec<Vec<char>> {
     let mut min = usize::MAX;
     let mut result = Vec::new();
     for input_path in input_paths {
+        
         let output_paths = possible_paths_for_code::<P>(&input_path);
         for output_path in output_paths {
             if output_path.len() < min {
@@ -74,14 +113,12 @@ fn possible_paths_for_code<P: Path>(code: &[char]) -> Vec<Vec<char>> {
     let mut start = 'A';
     for ch in code {
         let mut next = Vec::new();
-        let paths_between = P::paths_between(&start, ch);
+        let path_between = P::paths_between(&start, ch);
         for sf in so_far {
-            for p in &paths_between {
-                let mut n = sf.clone();
-                n.extend_from_slice(&p);
-                n.push('A');
-                next.push(n);
-            }
+            let mut n: Vec<char> = sf.clone();
+            n.extend_from_slice(&path_between);
+            n.push('A');
+            next.push(n);
         }
         start = *ch;
         so_far = next;
@@ -91,52 +128,52 @@ fn possible_paths_for_code<P: Path>(code: &[char]) -> Vec<Vec<char>> {
 }
 
 trait Path {
-    fn paths_between(start: &char, end: &char) -> Vec<Vec<char>>;
+    fn paths_between(start: &char, end: &char) -> Vec<char>;
 }
 
 struct DPad {}
 
 impl Path for DPad {
-    fn paths_between(start: &char, end: &char) -> Vec<Vec<char>> {
+    fn paths_between(start: &char, end: &char) -> Vec<char> {
         match start {
             '^' => match end {
-                '^' => vec![vec![]],
-                'A' => vec![vec!['>']],
-                '<' => vec![vec!['v', '<']],
-                'v' => vec![vec!['v']],
-                '>' => vec![vec!['v', '>'], vec!['>', 'v']],
+                '^' => vec![],
+                'A' => vec!['>'],
+                '<' => vec!['v', '<'], // Skip path through empty space
+                'v' => vec!['v'],
+                '>' => vec!['v', '>'],
                 _ => unreachable!(),
             },
             'A' => match end {
-                '^' => vec![vec!['<']],
-                'A' => vec![vec![]],
-                '<' => vec![vec!['v', '<', '<']],
-                'v' => vec![vec!['v', '<'], vec!['<', 'v']],
-                '>' => vec![vec!['v']],
+                '^' => vec!['<'],
+                'A' => vec![],
+                '<' => vec!['v', '<', '<'], // Skip path through empty space
+                'v' => vec!['<', 'v'],
+                '>' => vec!['v'],
                 _ => unreachable!(),
             },
             '<' => match end {
-                '^' => vec![vec!['>', '^'], vec!['^', '<']],
-                'A' => vec![vec!['>', '>', '^']],
-                '<' => vec![vec![]],
-                'v' => vec![vec!['>']],
-                '>' => vec![vec!['>', '>']],
+                '^' => vec!['>', '^'], // Skip path through empty space
+                'A' => vec!['>', '>', '^'], // Skip path through empty space
+                '<' => vec![],
+                'v' => vec!['>'],
+                '>' => vec!['>', '>'],
                 _ => unreachable!(),
             },
             'v' => match end {
-                '^' => vec![vec!['^']],
-                'A' => vec![vec!['^', '>'], vec!['>', '^']],
-                '<' => vec![vec!['<']],
-                'v' => vec![vec![]],
-                '>' => vec![vec!['>']],
+                '^' => vec!['^'],
+                'A' => vec!['^', '>'],
+                '<' => vec!['<'],
+                'v' => vec![],
+                '>' => vec!['>'],
                 _ => unreachable!(),
             },
             '>' => match end {
-                '^' => vec![vec!['^', '<'], vec!['<', '^']],
-                'A' => vec![vec!['^']],
-                '<' => vec![vec!['<', '<']],
-                'v' => vec![vec!['<']],
-                '>' => vec![vec![]],
+                '^' => vec!['<', '^'],
+                'A' => vec!['^'],
+                '<' => vec!['<', '<'],
+                'v' => vec!['<'],
+                '>' => vec![],
                 _ => unreachable!(),
             },
             _ => unreachable!(),
@@ -147,160 +184,160 @@ impl Path for DPad {
 struct NumPad {}
 
 impl Path for NumPad {
-    fn paths_between(start: &char, end: &char) -> Vec<Vec<char>> {
+    fn paths_between(start: &char, end: &char) -> Vec<char> {
         match start {
             '7' => match end {
-                '7' => vec![vec![]],
-                '8' => vec![vec!['>']],
-                '9' => vec![vec!['>', '>']],
-                '4' => vec![vec!['v']],
-                '5' => vec![vec!['v', '>'], vec!['v', '>']],
-                '6' => vec![vec!['v', '>', '>'], vec!['>', '>', 'v']],
-                '1' => vec![vec!['v', 'v']],
-                '2' => vec![vec!['v', 'v', '>'], vec!['>', 'v', 'v']],
-                '3' => vec![vec!['v', 'v', '>', '>'], vec!['>', '>', 'v', 'v']],
-                '0' => vec![vec!['>', 'v', 'v', 'v']], // Skip paths through the blank
-                'A' => vec![vec!['>', '>', 'v', 'v', 'v']], // Skip paths through the blank
+                '7' => vec![],
+                '8' => vec!['>'],
+                '9' => vec!['>', '>'],
+                '4' => vec!['v'],
+                '5' => vec!['v', '>'],
+                '6' => vec!['v', '>', '>'],
+                '1' => vec!['v', 'v'],
+                '2' => vec!['v', 'v', '>'],
+                '3' => vec!['v', 'v', '>', '>'],
+                '0' => vec!['>', 'v', 'v', 'v'], // Skip paths through the blank
+                'A' => vec!['>', '>', 'v', 'v', 'v'], // Skip paths through the blank
                 _ => unreachable!(),
             },
             '8' => match end {
-                '7' => vec![vec!['<']],
-                '8' => vec![vec![]],
-                '9' => vec![vec!['>']],
-                '4' => vec![vec!['v', '<'], vec!['<', 'v']],
-                '5' => vec![vec!['v']],
-                '6' => vec![vec!['v', '>'], vec!['>', 'v']],
-                '1' => vec![vec!['v', 'v', '<'], vec!['<', 'v', 'v']],
-                '2' => vec![vec!['v', 'v']],
-                '3' => vec![vec!['v', 'v', '>'], vec!['>', 'v', 'v']],
-                '0' => vec![vec!['v', 'v', 'v']],
-                'A' => vec![vec!['v', 'v', 'v', '>'], vec!['>', 'v', 'v', 'v']],
+                '7' => vec!['<'],
+                '8' => vec![],
+                '9' => vec!['>'],
+                '4' => vec!['<', 'v'],
+                '5' => vec!['v'],
+                '6' => vec!['v', '>'],
+                '1' => vec!['<', 'v', 'v'],
+                '2' => vec!['v', 'v'],
+                '3' => vec!['v', 'v', '>'],
+                '0' => vec!['v', 'v', 'v'],
+                'A' => vec!['v', 'v', 'v', '>'],
                 _ => unreachable!(),
             },
             '9' => match end {
-                '7' => vec![vec!['<', '<']],
-                '8' => vec![vec!['<']],
-                '9' => vec![vec![]],
-                '4' => vec![vec!['<', '<', 'v'], vec!['v', '<', '<']],
-                '5' => vec![vec!['<', 'v']],
-                '6' => vec![vec!['v']],
-                '1' => vec![vec!['<', '<', 'v', 'v'], vec!['v', 'v', '<', '<']],
-                '2' => vec![vec!['<', 'v', 'v'], vec!['v', 'v', '<']],
-                '3' => vec![vec!['v', 'v']],
-                '0' => vec![vec!['<', 'v', 'v', 'v'], vec!['v', 'v', 'v', '<']],
-                'A' => vec![vec!['v', 'v', 'v']],
+                '7' => vec!['<', '<'],
+                '8' => vec!['<'],
+                '9' => vec![],
+                '4' => vec!['<', '<', 'v'],
+                '5' => vec!['<', 'v'],
+                '6' => vec!['v'],
+                '1' => vec!['<', '<', 'v', 'v'],
+                '2' => vec!['<', 'v', 'v'],
+                '3' => vec!['v', 'v'],
+                '0' => vec!['<', 'v', 'v', 'v'],
+                'A' => vec!['v', 'v', 'v'],
                 _ => unreachable!(),
             },
             '4' => match end {
-                '7' => vec![vec!['^']],
-                '8' => vec![vec!['^', '>'], vec!['>', '^']],
-                '9' => vec![vec!['^', '>', '>'], vec!['>', '>', '^']],
-                '4' => vec![vec![]],
-                '5' => vec![vec!['>']],
-                '6' => vec![vec!['>', '>']],
-                '1' => vec![vec!['v']],
-                '2' => vec![vec!['v', '>'], vec!['>', 'v']],
-                '3' => vec![vec!['v', '>', '>'], vec!['>', '>', 'v']],
-                '0' => vec![vec!['>', 'v', 'v']], // Skip path throug blank
-                'A' => vec![vec!['>', '>', 'v', 'v']], // Skip path throug blank
+                '7' => vec!['^'],
+                '8' => vec!['^', '>'],
+                '9' => vec!['^', '>', '>'],
+                '4' => vec![],
+                '5' => vec!['>'],
+                '6' => vec!['>', '>'],
+                '1' => vec!['v'],
+                '2' => vec!['v', '>'],
+                '3' => vec!['v', '>', '>'],
+                '0' => vec!['>', 'v', 'v'], // Skip path through blank
+                'A' => vec!['>', '>', 'v', 'v'], // Skip path through blank
                 _ => unreachable!(),
             },
             '5' => match end {
-                '7' => vec![vec!['^', '<'], vec!['<', '^']],
-                '8' => vec![vec!['^']],
-                '9' => vec![vec!['^', '>'], vec!['>', '^']],
-                '4' => vec![vec!['<']],
-                '5' => vec![vec![]],
-                '6' => vec![vec!['>']],
-                '1' => vec![vec!['<', 'v'], vec!['v', '<']],
-                '2' => vec![vec!['v']],
-                '3' => vec![vec!['v', '>'], vec!['>', 'v']],
-                '0' => vec![vec!['v', 'v']],
-                'A' => vec![vec!['v', 'v', '>'], vec!['>', 'v', 'v']],
+                '7' => vec!['<', '^'],
+                '8' => vec!['^'],
+                '9' => vec!['^', '>'],
+                '4' => vec!['<'],
+                '5' => vec![],
+                '6' => vec!['>'],
+                '1' => vec!['<', 'v'],
+                '2' => vec!['v'],
+                '3' => vec!['v', '>'],
+                '0' => vec!['v', 'v'],
+                'A' => vec!['v', 'v', '>'],
                 _ => unreachable!(),
             },
             '6' => match end {
-                '7' => vec![vec!['^', '<', '<'], vec!['<', '<', '^']],
-                '8' => vec![vec!['^', '<'], vec!['<', '^']],
-                '9' => vec![vec!['^']],
-                '4' => vec![vec!['<', '<']],
-                '5' => vec![vec!['<']],
-                '6' => vec![vec![]],
-                '1' => vec![vec!['v', '<', '<'], vec!['<', '<', 'v']],
-                '2' => vec![vec!['v', '<'], vec!['<', 'v']],
-                '3' => vec![vec!['v']],
-                '0' => vec![vec!['<', 'v', 'v'], vec!['v', 'v', '<']],
-                'A' => vec![vec!['v', 'v']],
+                '7' => vec!['<', '<', '^'],
+                '8' => vec!['<', '^'],
+                '9' => vec!['^'],
+                '4' => vec!['<', '<'],
+                '5' => vec!['<'],
+                '6' => vec![],
+                '1' => vec!['<', '<', 'v'],
+                '2' => vec!['<', 'v'],
+                '3' => vec!['v'],
+                '0' => vec!['<', 'v', 'v'],
+                'A' => vec!['v', 'v'],
                 _ => unreachable!(),
             },
             '1' => match end {
-                '7' => vec![vec!['^', '^']],
-                '8' => vec![vec!['^', '^', '>'], vec!['>', '^', '^']],
-                '9' => vec![vec!['^', '^', '>', '>'], vec!['>', '>', '^', '^']],
-                '4' => vec![vec!['^']],
-                '5' => vec![vec!['^', '>'], vec!['>', '^']],
-                '6' => vec![vec!['^', '>', '>'], vec!['>', '>', '^']],
-                '1' => vec![vec![]],
-                '2' => vec![vec!['>']],
-                '3' => vec![vec!['>', '>']],
-                '0' => vec![vec!['>', 'v']], // Skip path through blank
-                'A' => vec![vec!['>', '>', 'v']], // Skip path through blank,
+                '7' => vec!['^', '^'],
+                '8' => vec!['^', '^', '>'],
+                '9' => vec!['^', '^', '>', '>'],
+                '4' => vec!['^'],
+                '5' => vec!['^', '>'],
+                '6' => vec!['^', '>', '>'],
+                '1' => vec![],
+                '2' => vec!['>'],
+                '3' => vec!['>', '>'],
+                '0' => vec!['>', 'v'], // Skip path through blank
+                'A' => vec!['>', '>', 'v'], // Skip path through blank,
                 _ => unreachable!(),
             },
             '2' => match end {
-                '7' => vec![vec!['<', '^', '^'], vec!['^', '^', '<']],
-                '8' => vec![vec!['^', '^']],
-                '9' => vec![vec!['^', '^', '>'], vec!['>', '^', '^']],
-                '4' => vec![vec!['<', '^'], vec!['^', '<']],
-                '5' => vec![vec!['^']],
-                '6' => vec![vec!['^', '>'], vec!['>', '^']],
-                '1' => vec![vec!['<']],
-                '2' => vec![vec![]],
-                '3' => vec![vec!['>']],
-                '0' => vec![vec!['v']],
-                'A' => vec![vec!['v', '>'], vec!['>', 'v']],
+                '7' => vec!['<', '^', '^'],
+                '8' => vec!['^', '^'],
+                '9' => vec!['^', '^', '>'],
+                '4' => vec!['<', '^'],
+                '5' => vec!['^'],
+                '6' => vec!['^', '>'],
+                '1' => vec!['<'],
+                '2' => vec![],
+                '3' => vec!['>'],
+                '0' => vec!['v'],
+                'A' => vec!['v', '>'],
                 _ => unreachable!(),
             },
             '3' => match end {
-                '7' => vec![vec!['<', '<', '^', '^'], vec!['^', '^', '<', '<']],
-                '8' => vec![vec!['<', '^', '^'], vec!['^', '<', '^']],
-                '9' => vec![vec!['^', '^']],
-                '4' => vec![vec!['<', '<', '^'], vec!['^', '<', '<']],
-                '5' => vec![vec!['<', '^'], vec!['^', '<']],
-                '6' => vec![vec!['^']],
-                '1' => vec![vec!['<', '<']],
-                '2' => vec![vec!['<']],
-                '3' => vec![vec![]],
-                '0' => vec![vec!['<', 'v'], vec!['v', '<']],
-                'A' => vec![vec!['v']],
+                '7' => vec!['<', '<', '^', '^'],
+                '8' => vec!['<', '^', '^'],
+                '9' => vec!['^', '^'],
+                '4' => vec!['<', '<', '^'],
+                '5' => vec!['<', '^'],
+                '6' => vec!['^'],
+                '1' => vec!['<', '<'],
+                '2' => vec!['<'],
+                '3' => vec![],
+                '0' => vec!['<', 'v'],
+                'A' => vec!['v'],
                 _ => unreachable!(),
             },
             '0' => match end {
-                '7' => vec![vec!['^', '^', '^', '<']], // Skip path through blank
-                '8' => vec![vec!['^', '^', '^']],
-                '9' => vec![vec!['^', '^', '^', '>'], vec!['>', '^', '^', '^']],
-                '4' => vec![vec!['^', '^', '<']], // Skip path through blank
-                '5' => vec![vec!['^', '^']],
-                '6' => vec![vec!['^', '^', '>'], vec!['>', '^', '^']],
-                '1' => vec![vec!['^', '<']], // Skip path through blank
-                '2' => vec![vec!['^']],
-                '3' => vec![vec!['^', '>'], vec!['>', '^']],
-                '0' => vec![vec![]],
-                'A' => vec![vec!['>']],
+                '7' => vec!['^', '^', '^', '<'], // Skip path through blank
+                '8' => vec!['^', '^', '^'],
+                '9' => vec!['^', '^', '^', '>'],
+                '4' => vec!['^', '^', '<'], // Skip path through blank
+                '5' => vec!['^', '^'],
+                '6' => vec!['^', '^', '>'],
+                '1' => vec!['^', '<'], // Skip path through blank
+                '2' => vec!['^'],
+                '3' => vec!['^', '>'],
+                '0' => vec![],
+                'A' => vec!['>'],
                 _ => unreachable!(),
             },
             'A' => match end {
-                '7' => vec![vec!['^', '^', '^', '<', '<']], // Skip path through blank
-                '8' => vec![vec!['^', '^', '^', '<'], vec!['<', '^', '^', '^']],
-                '9' => vec![vec!['^', '^', '^']],
-                '4' => vec![vec!['^', '^', '<', '<']], // Skip path through blank
-                '5' => vec![vec!['^', '^', '<'], vec!['<', '^', '^']],
-                '6' => vec![vec!['^', '^']],
-                '1' => vec![vec!['^', '<', '<']], // Skip path through blank
-                '2' => vec![vec!['^', '<'], vec!['<', '^']],
-                '3' => vec![vec!['^']],
-                '0' => vec![vec!['<']],
-                'A' => vec![vec![]],
+                '7' => vec!['^', '^', '^', '<', '<'], // Skip path through blank
+                '8' => vec!['<', '^', '^', '^'],
+                '9' => vec!['^', '^', '^'],
+                '4' => vec!['^', '^', '<', '<'], // Skip path through blank
+                '5' => vec!['<', '^', '^'],
+                '6' => vec!['^', '^'],
+                '1' => vec!['^', '<', '<'], // Skip path through blank
+                '2' => vec!['<', '^'],
+                '3' => vec!['^'],
+                '0' => vec!['<'],
+                'A' => vec![],
                 _ => unreachable!(),
             },
             _ => unreachable!(),
