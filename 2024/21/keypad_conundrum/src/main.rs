@@ -5,35 +5,47 @@ fn main() {
     let path = &args[1];
     let contents = fs::read_to_string(path).expect("Something went wrong reading the file");
 
+    let human_part1 = DPad::human();
+    let keypad1 = DPad::keypad("keypad1", human_part1);
+    // Keypad 0 is always the NumPad
+
+    let mut keypad_part2 = DPad::human();
+    for i in 1..=50 {
+        let name = format!("keypad{}", i);
+        let keypad_n = DPad::keypad(&name, keypad_part2);
+        keypad_part2 = keypad_n;
+    }
+
     let mut sum_part1 = 0;
     let mut sum_part2 = 0;
-
     for line in contents.lines() {
         let num = &line[0..3].parse::<usize>().unwrap();
-        let chars: Vec<_> = line.chars().collect();
-        print!("Generating keypresses for {} - ", line);
+        let code: Vec<_> = line.chars().collect();
 
-        let numpad_paths = possible_paths_for_code::<NumPad>(&chars);
-        //_dump("numpad_paths", &numpad_paths);
-        let dpad1_paths = possible_paths_for_paths::<DPad>(&numpad_paths);
-        //_dump("dpad1_paths", &dpad1_paths);
-        let dpad2_paths = possible_paths_for_paths::<DPad>(&dpad1_paths);
-        //_dump("dpad2_paths", &dpad2_paths);
-
-        let complexity_part1 = dpad2_paths.first().unwrap().len();
-        println!("{} keypresses", complexity_part1);
-
-        let mut prev = numpad_paths;
-        for i in 0..15 {
-            let step_paths = possible_paths_for_paths::<DPad>(&prev);
-            println!("Completed step {}, with lenght {}", i, step_paths.first().unwrap().len());
-            prev = step_paths;
+        let mut cur = &'A';
+        let mut dpad_input = Vec::new();
+        for ch in &code {
+            dpad_input.extend_from_slice(&NumPad::paths_between(&cur, ch));
+            dpad_input.push('A');
+            cur = ch;
         }
+        //println!("Dpad input is {}", string_for(&dpad_input));
+        let result_part1 = keypad1.keypresses(&dpad_input);
+        let complexity_part1 = result_part1.len();
 
-        let complexity_part2 = prev.first().unwrap().len();
+        let result_part2 = keypad_part2.keypresses(&dpad_input);
+        let complexity_part2 = result_part2.len();
+        println!(
+            "Complexity for {} is {} for part1 and {} for part 2",
+            string_for(&code),
+            complexity_part1,
+            complexity_part2
+        );
 
         sum_part1 += num * complexity_part1;
         sum_part2 += num * complexity_part2;
+
+        //break;
     }
 
     println!(
@@ -42,96 +54,77 @@ fn main() {
     );
 }
 
-fn _dump(label: &str, paths: &[Vec<char>]) {
-    println!("Dumping {}", label);
-    for vec in paths {
-        print!("  ");
-        for ch in vec {
-            print!("{}", ch);
-        }
-        println!();
+fn string_for(input: &[char]) -> String {
+    let mut res = String::new();
+    for ch in input {
+        res.push(*ch);
     }
-}
-
-fn shortest_path<P: Path>(paths: &[Vec<char>], seen: &mut HashMap<Vec<char>, Vec<char>>) -> Vec<Vec<char>> {
-    let mut res = Vec::new();
-    for path in paths {
-        if path.len() == 0 {
-            continue;
-        }
-
-        let mut a = 0;
-        for i in 0..path.len() {
-            if path[i] == 'A' {
-                a = i;
-            }
-        }
-
-        let path_first = &path[0..a];
-        let path_rest = &path[a + 1..];
-        let rest = &shortest_path::<P>(path_rest, seen);
-
-        if let Some(first) = seen.get(path_first) {
-            let mut res = first.clone();
-            res.extend_from_slice(rest);
-            return  res;
-        }
-
-        let possible = possible_paths_for_paths::<P>(&[path_first.to_vec()]);
-        let mut m = possible.first().unwrap().clone();
-        seen.insert(path.to_vec(), m.clone());
-        m.extend_from_slice(rest);
-        m
-    }
-
     res
-}
-
-fn possible_paths_for_paths<P: Path>(input_paths: &[Vec<char>]) -> Vec<Vec<char>> {
-    let mut min = usize::MAX;
-    let mut result = Vec::new();
-    for input_path in input_paths {
-        
-        let output_paths = possible_paths_for_code::<P>(&input_path);
-        for output_path in output_paths {
-            if output_path.len() < min {
-                min = output_path.len();
-                result.clear();
-                result.push(output_path);
-            } else if output_path.len() == min {
-                result.push(output_path);
-            } else {
-                // skip it, it's longer than what we've seen already.
-            }
-        }
-    }
-    result
-}
-
-fn possible_paths_for_code<P: Path>(code: &[char]) -> Vec<Vec<char>> {
-    let mut so_far: Vec<Vec<char>> = vec![vec![]];
-    let mut start = 'A';
-    for ch in code {
-        let mut next = Vec::new();
-        let path_between = P::paths_between(&start, ch);
-        for sf in so_far {
-            let mut n: Vec<char> = sf.clone();
-            n.extend_from_slice(&path_between);
-            n.push('A');
-            next.push(n);
-        }
-        start = *ch;
-        so_far = next;
-    }
-
-    so_far
 }
 
 trait Path {
     fn paths_between(start: &char, end: &char) -> Vec<char>;
 }
 
-struct DPad {}
+struct DPad {
+    costs: HashMap<(char, char), Vec<char>>,
+}
+
+impl DPad {
+    fn human() -> Self {
+        let mut costs = HashMap::new();
+        for s in "^A<v>".chars() {
+            for e in "^A<v>".chars() {
+                let p = Self::paths_between(&s, &e);
+                costs.insert((s, e), p);
+            }
+        }
+        Self {
+            costs,
+        }
+    }
+
+    fn keypad(name: &str, parent: DPad) -> Self {
+        //println!("Building {}", name);
+        let mut costs = HashMap::new();
+        for s in "^A<v>".chars() {
+            for e in "^A<v>".chars() {
+                let path = Self::paths_between(&s, &e);
+                let mut parent_path = Vec::new();
+                //print!("  A Path from {} - {} is: '{}'", s, e, string_for(&path));
+                let mut cur = 'A';
+                for next in path {
+                    parent_path.extend_from_slice(parent.costs.get(&(cur, next)).unwrap());
+                    parent_path.push('A');
+
+                    cur = next;
+                }
+                let to_a = DPad::paths_between(&cur, &'A');
+                parent_path.extend_from_slice(&to_a);
+                parent_path.push('A');
+                //println!(" - keypresses are {:?}", string_for(&parent_path));
+                costs.insert((s, e), parent_path);
+            }
+        }
+        Self { costs }
+    }
+
+    fn keypresses(&self, code: &[char]) -> Vec<char> {
+        let mut res = Vec::new();
+        let mut cur = &'A';
+        let mut old_len = 0;
+        for ch in code {
+            let current = self.costs.get(&(*cur, *ch)).unwrap();
+            res.extend_from_slice(&current);
+
+            //println!("Going to press {} from {} using {}", ch, cur, string_for(&res[old_len..]));
+            old_len = res.len();
+            cur = ch;
+
+        }
+        res
+    }
+}
 
 impl Path for DPad {
     fn paths_between(start: &char, end: &char) -> Vec<char> {
@@ -153,7 +146,7 @@ impl Path for DPad {
                 _ => unreachable!(),
             },
             '<' => match end {
-                '^' => vec!['>', '^'], // Skip path through empty space
+                '^' => vec!['>', '^'],      // Skip path through empty space
                 'A' => vec!['>', '>', '^'], // Skip path through empty space
                 '<' => vec![],
                 'v' => vec!['>'],
@@ -280,7 +273,7 @@ impl Path for NumPad {
                 '1' => vec![],
                 '2' => vec!['>'],
                 '3' => vec!['>', '>'],
-                '0' => vec!['>', 'v'], // Skip path through blank
+                '0' => vec!['>', 'v'],      // Skip path through blank
                 'A' => vec!['>', '>', 'v'], // Skip path through blank,
                 _ => unreachable!(),
             },
