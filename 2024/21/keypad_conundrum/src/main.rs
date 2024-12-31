@@ -4,13 +4,14 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let path = &args[1];
     let contents = fs::read_to_string(path).expect("Something went wrong reading the file");
+    let robots = args[2].parse::<usize>().expect("Should be a number of robots to use");
 
     let human_part1 = DPad::human();
     let keypad1 = DPad::keypad("keypad1", human_part1);
     // Keypad 0 is always the NumPad
 
     let mut keypad_part2 = DPad::human();
-    for i in 1..=50 {
+    for i in 1..=robots {
         let name = format!("keypad{}", i);
         let keypad_n = DPad::keypad(&name, keypad_part2);
         keypad_part2 = keypad_n;
@@ -29,21 +30,23 @@ fn main() {
             dpad_input.push('A');
             cur = ch;
         }
-        //println!("Dpad input is {}", string_for(&dpad_input));
         let result_part1 = keypad1.keypresses(&dpad_input);
-        let complexity_part1 = result_part1.len();
-
         let result_part2 = keypad_part2.keypresses(&dpad_input);
-        let complexity_part2 = result_part2.len();
+        //println!("Result for part one is '{}'", string_for(&result_part1));
+        //println!("Result for part two is '{}'", string_for(&result_part2));
+        let complexity_part1 = num * result_part1.len();
+        let complexity_part2 = num * result_part2.len();
         println!(
-            "Complexity for {} is {} for part1 and {} for part 2",
+            "Length for {} is {} for part1 and {} for part 2. Complexities are {} and {}",
             string_for(&code),
+            result_part1.len(),
+            result_part2.len(),
             complexity_part1,
             complexity_part2
         );
 
-        sum_part1 += num * complexity_part1;
-        sum_part2 += num * complexity_part2;
+        sum_part1 += complexity_part1;
+        sum_part2 += complexity_part2;
 
         //break;
     }
@@ -75,8 +78,9 @@ impl DPad {
         let mut costs = HashMap::new();
         for s in "^A<v>".chars() {
             for e in "^A<v>".chars() {
-                let p = Self::paths_between(&s, &e);
-                costs.insert((s, e), p);
+                let mut path = Self::paths_between(&s, &e);
+                path.push('A');
+                costs.insert((s, e), path);
             }
         }
         Self {
@@ -84,25 +88,21 @@ impl DPad {
         }
     }
 
-    fn keypad(name: &str, parent: DPad) -> Self {
+    fn keypad(_name: &str, parent: DPad) -> Self {
         //println!("Building {}", name);
         let mut costs = HashMap::new();
         for s in "^A<v>".chars() {
             for e in "^A<v>".chars() {
-                let path = Self::paths_between(&s, &e);
+                let mut path = Self::paths_between(&s, &e);
+                path.push('A');
                 let mut parent_path = Vec::new();
-                //print!("  A Path from {} - {} is: '{}'", s, e, string_for(&path));
+                //print!("  Going from {} - {} is: '{}'", s, e, string_for(&path));
                 let mut cur = 'A';
                 for next in path {
                     parent_path.extend_from_slice(parent.costs.get(&(cur, next)).unwrap());
-                    parent_path.push('A');
-
                     cur = next;
                 }
-                let to_a = DPad::paths_between(&cur, &'A');
-                parent_path.extend_from_slice(&to_a);
-                parent_path.push('A');
-                //println!(" - keypresses are {:?}", string_for(&parent_path));
+                //println!(" - keypresses are {:?}, length: {}", string_for(&parent_path), parent_path.len());
                 costs.insert((s, e), parent_path);
             }
         }
@@ -112,15 +112,12 @@ impl DPad {
     fn keypresses(&self, code: &[char]) -> Vec<char> {
         let mut res = Vec::new();
         let mut cur = &'A';
-        let mut old_len = 0;
         for ch in code {
             let current = self.costs.get(&(*cur, *ch)).unwrap();
             res.extend_from_slice(&current);
 
-            //println!("Going to press {} from {} using {}", ch, cur, string_for(&res[old_len..]));
-            old_len = res.len();
+            //println!("Going to press {} from {} via is {}", ch, cur, string_for(&current));
             cur = ch;
-
         }
         res
     }
