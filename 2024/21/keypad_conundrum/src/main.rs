@@ -32,15 +32,13 @@ fn main() {
         }
         let result_part1 = keypad1.keypresses(&dpad_input);
         let result_part2 = keypad_part2.keypresses(&dpad_input);
-        //println!("Result for part one is '{}'", string_for(&result_part1));
-        //println!("Result for part two is '{}'", string_for(&result_part2));
-        let complexity_part1 = num * result_part1.len();
-        let complexity_part2 = num * result_part2.len();
+        let complexity_part1 = num * result_part1;
+        let complexity_part2 = num * result_part2;
         println!(
             "Length for {} is {} for part1 and {} for part 2. Complexities are {} and {}",
             string_for(&code),
-            result_part1.len(),
-            result_part2.len(),
+            result_part1,
+            result_part2,
             complexity_part1,
             complexity_part2
         );
@@ -70,7 +68,7 @@ trait Path {
 }
 
 struct DPad {
-    costs: HashMap<(char, char), Vec<char>>,
+    costs: HashMap<(char, char), usize>,
 }
 
 impl DPad {
@@ -80,7 +78,7 @@ impl DPad {
             for e in "^A<v>".chars() {
                 let mut path = Self::paths_between(&s, &e);
                 path.push('A');
-                costs.insert((s, e), path);
+                costs.insert((s, e), path.len());
             }
         }
         Self {
@@ -88,35 +86,31 @@ impl DPad {
         }
     }
 
-    fn keypad(_name: &str, parent: DPad) -> Self {
-        //println!("Building {}", name);
+    fn keypad(name: &str, parent: DPad) -> Self {
+        println!("Building {}", name);
         let mut costs = HashMap::new();
         for s in "^A<v>".chars() {
             for e in "^A<v>".chars() {
                 let mut path = Self::paths_between(&s, &e);
                 path.push('A');
-                let mut parent_path = Vec::new();
-                //print!("  Going from {} - {} is: '{}'", s, e, string_for(&path));
+                let mut cost = 0;
                 let mut cur = 'A';
                 for next in path {
-                    parent_path.extend_from_slice(parent.costs.get(&(cur, next)).unwrap());
+                    cost += parent.costs.get(&(cur, next)).unwrap();
                     cur = next;
                 }
-                //println!(" - keypresses are {:?}, length: {}", string_for(&parent_path), parent_path.len());
-                costs.insert((s, e), parent_path);
+                costs.insert((s, e), cost);
             }
         }
         Self { costs }
     }
 
-    fn keypresses(&self, code: &[char]) -> Vec<char> {
-        let mut res = Vec::new();
+    fn keypresses(&self, code: &[char]) -> usize {
+        let mut res = 0;
         let mut cur = &'A';
         for ch in code {
             let current = self.costs.get(&(*cur, *ch)).unwrap();
-            res.extend_from_slice(&current);
-
-            //println!("Going to press {} from {} via is {}", ch, cur, string_for(&current));
+            res += current;
             cur = ch;
         }
         res
