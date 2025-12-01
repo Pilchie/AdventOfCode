@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 #[derive(Debug)]
+#[allow(dead_code)]
 enum Error {
     IO(std::io::Error),
     Parse(std::num::ParseIntError),

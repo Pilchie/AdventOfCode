@@ -18,7 +18,7 @@ pub struct Rules<'a> {
 }
 
 impl<'a> Rules<'a> {
-    pub fn parse(input: &'a str) -> Rules {
+    pub fn parse(input: &'a str) -> Rules<'a> {
         Rules {
             rules: input
                 .split('\n')

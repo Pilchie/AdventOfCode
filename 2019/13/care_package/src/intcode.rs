@@ -280,7 +280,7 @@ struct Memory<'a> {
 }
 
 impl<'a> Memory<'a> {
-    fn new(memory: &'a mut Vec<i64>) -> Memory {
+    fn new(memory: &'a mut Vec<i64>) -> Memory<'a> {
         Memory {
             memory,
             other_values: HashMap::new(),
@@ -311,6 +311,7 @@ pub trait InputOutputSystem {
     fn get_input(&mut self) -> i64;
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 
