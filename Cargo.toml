@@ -54,5 +54,6 @@ members = [
     "2023/1/calibration",
     "2023/2/cube_conundrum",
     "2023/3/gear_ratios",
-    "2024/*/*"
+    "2024/*/*",
+    "2025/*/*",
 ]
