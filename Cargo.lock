@@ -142,6 +142,10 @@ name = "gear_ratios"
 version = "0.1.0"
 
 [[package]]
+name = "gift_shop"
+version = "0.1.0"
+
+[[package]]
 name = "guard_gallivant"
 version = "0.1.0"
 
