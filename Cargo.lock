@@ -39,6 +39,10 @@ name = "bridge_repair"
 version = "0.1.0"
 
 [[package]]
+name = "cafeteria"
+version = "0.1.0"
+
+[[package]]
 name = "calibration"
 version = "0.1.0"
 
