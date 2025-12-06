@@ -390,6 +390,10 @@ name = "transparent-origami"
 version = "0.1.0"
 
 [[package]]
+name = "trash_compactor"
+version = "0.1.0"
+
+[[package]]
 name = "trees"
 version = "0.1.0"
 
